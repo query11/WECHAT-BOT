@@ -13,6 +13,11 @@ jobs:
   offline:
     runs-on: windows-latest
     timeout-minutes: 25
+    env:
+      # Windows hosted runners may expose TEMP/TMP through an 8.3 user alias.
+      # Use the full runner path for fixtures that reject redirected paths.
+      TEMP: ${{ runner.temp }}
+      TMP: ${{ runner.temp }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
