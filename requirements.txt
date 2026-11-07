@@ -1,0 +1,3 @@
+# Python 3.10+ on Windows. The bridge uses the Python standard library.
+# segno renders the QR image at login; without it a login URL is printed.
+segno>=1.6.1
