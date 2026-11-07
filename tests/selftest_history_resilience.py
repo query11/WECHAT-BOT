@@ -51,13 +51,18 @@ class HistoryResilienceTests(unittest.TestCase):
         lock.rollback()
 
     def test_cache_is_marked_stale_then_recovers_and_diagnostics_are_throttled(self):
-        with patch('bridge_runtime.HISTORY_REFRESH_SECONDS', 0):
+        with patch('bridge_runtime.HISTORY_REFRESH_SECONDS', 0), \
+                selftest_runtime.wall_at(time.time()) as clock:
             self.rt.tick()
             with patch.object(self.b.journal, 'describe', side_effect=sqlite3.DatabaseError('synthetic')):
                 with self.assertLogs('bridge', level='WARNING') as logs:
                     self.rt.tick()
                     heartbeat = self.status()['heartbeat']
+                    # Consecutive ticks can share a Windows wall-clock reading.
+                    # Advance it explicitly; diagnostic throttling uses monotonic time.
+                    clock.return_value += 1
                     self.rt.tick()
+                    clock.return_value += 1
                     self.rt.tick()
                 self.assertEqual(len(logs.output), 1)
                 self.assertGreater(self.status()['heartbeat'], heartbeat)
