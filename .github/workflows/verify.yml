@@ -13,11 +13,6 @@ jobs:
   offline:
     runs-on: windows-latest
     timeout-minutes: 25
-    env:
-      # Windows hosted runners may expose TEMP/TMP through an 8.3 user alias.
-      # Use the full runner path for fixtures that reject redirected paths.
-      TEMP: ${{ runner.temp }}
-      TMP: ${{ runner.temp }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -26,6 +21,11 @@ jobs:
       - name: Install QR dependency
         run: python -m pip install -r requirements.txt
       - name: Run offline regression
+        env:
+          # Windows hosted runners may expose TEMP/TMP through an 8.3 user alias.
+          # The runner context is available after the job has been assigned.
+          TEMP: ${{ runner.temp }}
+          TMP: ${{ runner.temp }}
         run: python tools/verify.py --suite offline --label github-actions
       - name: Upload verification report
         if: always()
