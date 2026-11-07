@@ -26,6 +26,7 @@ jobs:
           # The runner context is available after the job has been assigned.
           TEMP: ${{ runner.temp }}
           TMP: ${{ runner.temp }}
+          PYTHONIOENCODING: utf-8
         run: python tools/verify.py --suite offline --label github-actions
       - name: Upload verification report
         if: always()
