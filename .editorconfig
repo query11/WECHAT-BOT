@@ -24,3 +24,7 @@ charset = utf-8-bom
 # every other .ps1 stays pure ASCII.
 [{tray_app,memory_editor,backend_editor,app_settings,task_history,template_editor,workflow_window,workbench_layout,result_revision_ui,desktop_files_ui,schedule_ui,setup_wizard,update_window}.ps1]
 charset = utf-8-bom
+
+[*.iss]
+charset = utf-8-bom
+end_of_line = crlf

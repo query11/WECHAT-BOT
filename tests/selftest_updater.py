@@ -187,7 +187,7 @@ class PrepareApplyTests(Base):
         self.assertEqual((Path(result['backup']) / 'app' / 'wechat_bridge.py').read_text(), 'old bridge')
         manifest = json.loads((self.root / '.runtime' / 'update' / 'manifest.json').read_text())
         self.assertIn('docs/new.md', manifest['files']); self.assertEqual(manifest['version'], '1.2.0')
-        self.assertTrue(json.loads((self.root / '.runtime' / 'update' / 'result.json').read_text())['ok'])
+        self.assertTrue(json.loads((self.root / '.runtime' / 'update' / 'result.json').read_text(encoding='utf-8'))['ok'])
 
     def test_bad_checksum_version_mismatch_and_missing_files_are_refused(self):
         data = make_zip(PROGRAM)
@@ -217,7 +217,7 @@ class PrepareApplyTests(Base):
         self.assertEqual((self.root / 'app' / 'wechat_bridge.py').read_text(), 'old bridge')
         self.assertEqual((self.root / 'VERSION').read_text(), '1.0.0\n')
         self.assertFalse((self.root / 'docs' / 'new.md').exists())
-        self.assertFalse(json.loads((self.root / '.runtime' / 'update' / 'result.json').read_text())['ok'])
+        self.assertFalse(json.loads((self.root / '.runtime' / 'update' / 'result.json').read_text(encoding='utf-8'))['ok'])
 
     def test_apply_refuses_foreign_staging_and_running_processes(self):
         with self.assertRaises(updater.UpdateError):

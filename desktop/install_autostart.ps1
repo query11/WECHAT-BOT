@@ -6,7 +6,14 @@ $startupDir = [Environment]::GetFolderPath('Startup')
 if (-not $startupDir) { throw 'Current-user Startup folder unavailable.' }
 $shortcutPath = Join-Path $startupDir 'WeChatClaudeStandby.lnk'
 if ($Remove) {
-    if (Test-Path -LiteralPath $shortcutPath) { Remove-Item -LiteralPath $shortcutPath }
+    if (Test-Path -LiteralPath $shortcutPath) {
+        $shellObject = New-Object -ComObject WScript.Shell
+        $existing = $shellObject.CreateShortcut($shortcutPath)
+        $expected = '"' + (Join-Path $projectDir 'launch_tray.ps1') + '"'
+        if ($existing.Arguments.IndexOf($expected, [StringComparison]::OrdinalIgnoreCase) -ge 0) {
+            Remove-Item -LiteralPath $shortcutPath
+        }
+    }
     Write-Host 'Autostart removed; the current bridge process is unchanged.'
     exit 0
 }

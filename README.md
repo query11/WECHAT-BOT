@@ -1,5 +1,11 @@
 # WECHAT-BOT · 微信助手
 
+## 下载安装
+
+到 [最新版本下载页](https://github.com/query11/WECHAT-BOT/releases/latest) 下载 **WeChatAssistant-Setup-x.y.z.exe**，双击安装。支持 Windows 10/11 x64（含支持 x64 仿真的 ARM64），自带 Python，无需管理员权限。安装后从开始菜单打开“微信助手”，按使用引导完成设置；Claude Code 可在引导中一键安装。
+
+安装包暂未做代码签名。如果 Windows SmartScreen 提示，在确认来自本仓库并核对 `SHA256SUMS.txt` 后，选择“更多信息 → 仍要运行”。升级可直接运行新版安装包；卸载时会询问是否删除个人数据，默认保留。详见[安装、升级与卸载](docs/QUICKSTART.md)。
+
 通过个人微信给 Windows 电脑发送任务：处理文件、取回结果、管理任务队列，以及控制本机应用。桌面运行中心提供任务记录、附件核对、常用模板、结果继续修改和定时任务管理。
 
 消息经 iLink 长轮询传到本机，文件与工具操作由 Claude Code 执行；模型后端可选 Claude 或 DeepSeek。无需公网 IP 或内网穿透。
@@ -18,7 +24,7 @@
 | 定时安排 | 设置一次性或每天重复的提醒、自动任务 |
 | 本机控制 | 打开应用、调节音量、截图与窗口交互、腾讯会议及电源操作 |
 
-## 快速开始
+## 从源码运行
 
 需要 Windows 10/11、Python 3.10+、Windows PowerShell 5.1，以及已配置可用的 Claude Code CLI（使用引导可一键安装，不需要 Node.js）。使用 DeepSeek 后端仍需要 Claude Code 执行本机工具。
 
@@ -70,6 +76,7 @@ WECHAT-BOT/
 ├── desktop/                   # Windows 桌面端（PowerShell）：托盘、各窗口、启动/开关/卸载脚本、图标
 ├── tests/                     # 离线测试与模拟服务（tests/selftest.py 为旧版链路自测入口）
 ├── tools/                     # 验证、配置维护及开发工具
+├── installer/                 # 自带 Python 的安装包构建、安装和卸载实测
 ├── docs/                      # 使用、架构、功能和验收文档
 ├── .github/workflows/         # Windows 自动回归与发布
 ├── config.example.json        # 通用配置示例，无登录凭据

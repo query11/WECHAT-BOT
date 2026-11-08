@@ -38,7 +38,9 @@ function Find-Stray {
         throw "Cannot inspect bridge processes; refusing to start a duplicate."
     }
     foreach ($r in $rows) {
-        if ($r.CommandLine -and $r.CommandLine -like "*wechat_bridge.py*") {
+        $bridgeScript = Join-Path $WeChatApp 'wechat_bridge.py'
+        $pattern = '(?i)(?:^|[\s"])(?:' + [regex]::Escape($bridgeScript) + ')(?:["\s]|$)'
+        if ($r.CommandLine -and $r.CommandLine -match $pattern) {
             return (Get-Process -Id $r.ProcessId -ErrorAction SilentlyContinue)
         }
     }
@@ -59,7 +61,9 @@ function Get-Bridge {
 function Stop-Bridge($p) {
     # /T also kills the claude subprocess a running task may have spawned
     & taskkill /PID $($p.Id) /T /F 2>&1 | Out-Null
-    Start-Sleep -Milliseconds 400
+    try { $stopped = $p.WaitForExit(5000) } catch { $stopped = -not (Get-Process -Id $p.Id -ErrorAction SilentlyContinue) }
+    if (-not $stopped) { throw ('Bridge is still running: ' + $p.Id) }
+    if (Find-Stray) { throw 'Another bridge process for this installation is still running.' }
     Remove-Item $pidFile -ErrorAction SilentlyContinue
     Gone "bridge stopped (pid $($p.Id)). WeChat messages will queue up on Tencent's side."
 }

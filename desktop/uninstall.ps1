@@ -17,25 +17,30 @@ $runtime = Join-Path $here '.runtime'
 
 function Say($m) { if (-not $Quiet) { Write-Host $m } }
 
-# 1. Ask the tray to close itself, then stop the bridge.
-try {
-    if (-not (Test-Path -LiteralPath $runtime)) { New-Item -ItemType Directory -Path $runtime | Out-Null }
-    Set-Content -LiteralPath (Join-Path $runtime 'tray-exit') -Value 'exit'
-} catch { Say 'Could not signal the tray window; it may already be closed.' }
+# Validate first: never cross user-selected paths or directory junctions.
+. (Join-Path $scriptDir 'uninstall_safety.ps1')
+Assert-WeChatUninstallSafe $here
 
-try {
-    & powershell -NoProfile -ExecutionPolicy Bypass -File (Join-Path $scriptDir 'toggle.ps1') -Off | Out-Null
-    if ($LASTEXITCODE -ne 0) { throw ('toggle.ps1 exit code ' + $LASTEXITCODE) }
-    Say 'Background service stopped.'
-} catch { Say ('Could not stop the background service: ' + $_.Exception.Message) }
+# Ask this installation's tray to close, and stop only its bridge.
+if (-not (Test-Path -LiteralPath $runtime)) { New-Item -ItemType Directory -Path $runtime | Out-Null }
+Set-Content -LiteralPath (Join-Path $runtime 'tray-exit') -Value 'exit'
+& powershell -NoProfile -ExecutionPolicy Bypass -File (Join-Path $scriptDir 'toggle.ps1') -Off | Out-Null
+if ($LASTEXITCODE -ne 0) { throw ('Could not stop backend, exit code ' + $LASTEXITCODE) }
 
-$deadline = (Get-Date).AddSeconds(10)
-while ((Get-Date) -lt $deadline) {
-    $tray = $null
-    if (-not [Threading.Mutex]::TryOpenExisting('Local.WeChatAssistantTray', [ref]$tray)) { break }
-    $tray.Dispose()
+$deadline = (Get-Date).AddSeconds(15)
+do {
+    # Other open windows can still write configuration; fail rather than overwrite them.
+    $remaining = @(Get-CimInstance Win32_Process -ErrorAction Stop | Where-Object {
+        $_.ProcessId -ne $PID -and $_.CommandLine -and (
+            ($_.Name -like 'python*' -and $_.ExecutablePath -and $_.ExecutablePath.StartsWith((Join-Path $here 'runtime') + '\', [StringComparison]::OrdinalIgnoreCase)) -or
+            ($_.Name -like 'powershell*' -and $_.CommandLine.IndexOf($scriptDir + '\', [StringComparison]::OrdinalIgnoreCase) -ge 0 -and
+             $_.CommandLine -notmatch '(?i)uninstall\.ps1|toggle\.ps1')
+        )
+    })
+    if (-not $remaining.Count) { break }
     Start-Sleep -Milliseconds 300
-}
+} while ((Get-Date) -lt $deadline)
+if ($remaining.Count) { throw 'Close all assistant windows and running tasks, then retry.' }
 
 if ($StopOnly) {
     Remove-Item -LiteralPath (Join-Path $runtime 'tray-exit') -ErrorAction SilentlyContinue
@@ -43,11 +48,8 @@ if ($StopOnly) {
 }
 
 # 2. Remove the logon shortcut.
-try {
-    & powershell -NoProfile -ExecutionPolicy Bypass -File (Join-Path $scriptDir 'install_autostart.ps1') -Remove | Out-Null
-    if ($LASTEXITCODE -ne 0) { throw ('install_autostart.ps1 exit code ' + $LASTEXITCODE) }
-    Say 'Autostart removed.'
-} catch { Say ('Could not remove autostart: ' + $_.Exception.Message) }
+& powershell -NoProfile -ExecutionPolicy Bypass -File (Join-Path $scriptDir 'install_autostart.ps1') -Remove | Out-Null
+if ($LASTEXITCODE -ne 0) { throw ('Could not remove autostart, exit code ' + $LASTEXITCODE) }
 
 # 3. Personal data, only when asked.
 if (-not $RemoveData) {
