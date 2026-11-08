@@ -4,8 +4,9 @@ if (-not ('WeChatIndependentProcess' -as [type])) {
 }
 
 function Start-WeChatIndependentProcess([string]$Executable,[string]$Arguments,[string]$Directory) {
-    if (-not [WeChatIndependentProcess]::IsCurrentProcessInJob() -or
-        -not ([WeChatIndependentProcess]::CurrentJobFlags() -band 0x2000)) {
+    # A host can deny breakaway even without KILL_ON_JOB_CLOSE (GitHub runners
+    # and Task Scheduler do this). Use Explorer for every managed host.
+    if (-not [WeChatIndependentProcess]::IsCurrentProcessInJob()) {
         return [WeChatIndependentProcess]::Start($Executable,$Arguments,$Directory)
     }
     $launcherRoot=$PSScriptRoot
