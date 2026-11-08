@@ -1,6 +1,9 @@
 # Real installation lifecycle, using synthetic data in a unique temporary folder.
 param([string]$Setup = '')
 $ErrorActionPreference = 'Stop'
+if (Test-Path 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Uninstall\{7B90F140-0A4A-4EC0-BE50-786F15A7C6A5}_is1') {
+    throw 'Smoke test requires a clean Windows user without an existing installed assistant'
+}
 $root = Split-Path -Parent $PSScriptRoot
 $version = (Get-Content (Join-Path $root 'VERSION') -Raw).Trim()
 if (-not $Setup) { $Setup = Join-Path $root ('dist\WeChatAssistant-Setup-' + $version + '.exe') }

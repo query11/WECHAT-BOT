@@ -39,8 +39,12 @@ jobs:
       - name: Install Inno Setup with official Simplified Chinese
         shell: powershell
         run: |
-          choco install innosetup -y --no-progress
-          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          # Hosted images/Chocolatey may retain Inno 6.x; pin the official 7.x compiler.
+          $setup = Join-Path $env:RUNNER_TEMP 'innosetup-7.1.1-x64.exe'
+          Invoke-WebRequest -UseBasicParsing -Uri 'https://github.com/jrsoftware/issrc/releases/download/is-7_1_1/innosetup-7.1.1-x64.exe' -OutFile $setup
+          if ((Get-FileHash $setup -Algorithm SHA256).Hash.ToLowerInvariant() -ne '8a5a6711c3766a6e5fb74f280ba0e3551e719ce94538d901fdbd1f8f9920b3f0') { throw 'Inno Setup checksum mismatch' }
+          $process = Start-Process $setup -ArgumentList '/VERYSILENT /SUPPRESSMSGBOXES /NORESTART /ALLUSERS' -Wait -PassThru -WindowStyle Hidden
+          if ($process.ExitCode -ne 0) { throw 'Inno Setup installation failed' }
           $compiler = Get-ChildItem -Path "${env:ProgramFiles(x86)}\Inno Setup*\ISCC.exe", "$env:ProgramFiles\Inno Setup*\ISCC.exe" -ErrorAction SilentlyContinue | Sort-Object FullName -Descending | Select-Object -First 1
           if (-not $compiler -or -not (Test-Path (Join-Path $compiler.DirectoryName 'Languages\ChineseSimplified.isl'))) { throw 'Inno Setup 7.0.2+ with official Chinese translation required' }
           "INNO_ISCC=$($compiler.FullName)" >> $env:GITHUB_ENV
