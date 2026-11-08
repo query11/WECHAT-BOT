@@ -543,7 +543,7 @@ class Message(object):
     __slots__ = ("raw", "message_id", "from_user_id", "context_token",
                  "message_type", "text", "attachments", "quoted",
                  "_journal_id", "_inbox_journal_id", "_receipt_outcome",
-                 "_progress_stage", "_progress_started", "_task_control", "_inbox_enqueued_at", "_result_summary", "_output_files", "_inbox_summary", "_inbox_outputs",
+                 "_progress_stage", "_progress_started", "_task_control", "_inbox_generation", "_result_summary", "_output_files", "_inbox_summary", "_inbox_outputs",
                  "_dispatch_ready", "_receive_started", "_execution_state", "_desktop_origin",
                  "_queue_id", "_artifacts", "_artifact_saved", "_batch_intake_id",
                  "_template_checks", "_result_checks", "_result_checks_saved",

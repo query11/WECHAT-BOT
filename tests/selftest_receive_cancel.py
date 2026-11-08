@@ -40,7 +40,7 @@ class ReceiveCancelTests(unittest.TestCase):
     def start(self,paths,body='read incoming files'):
         items=[file_item(plain=PLAIN,name='part%d.txt'%n,url='http://127.0.0.1:%d%s'%(self.server.server_port,path)) for n,path in enumerate(paths)]
         msg=Message({'from_user_id':'owner','message_id':'incoming','item_list':items})
-        msg._inbox_enqueued_at=time.monotonic()
+        msg._inbox_generation=getattr(self.b,'_inbox_generation',0)
         msg._inbox_journal_id=self.b.journal.add('owner','incoming','inbox','receive')[0]
         self.b._inbox_q.put((msg,'owner',body));self.b._inbox_q.put(None)
         worker=threading.Thread(target=self.b._inbox_loop);worker.start();return msg,worker
@@ -72,10 +72,11 @@ class ReceiveCancelTests(unittest.TestCase):
             with self.assertRaises(TaskCancelled):self.b._inbox_save_one(info,'owner',1,control)
         self.assertEqual(list((self.root/'inbox').iterdir()),[]);self.assertEqual(self.b.inbox_store.all(),[])
 
-    def test_stopall_skips_queued_receives_and_allows_new_messages(self):
+    @patch('time.monotonic', return_value=100.0)
+    def test_stopall_skips_queued_receives_and_allows_new_messages(self, frozen_clock):
         for ident in ('queued1','queued2'):
             msg=Message({'from_user_id':'owner','message_id':ident,'item_list':[file_item(plain=PLAIN,url='http://127.0.0.1:%d/slow'%self.server.server_port)]})
-            msg._inbox_enqueued_at=time.monotonic()
+            msg._inbox_generation=getattr(self.b,'_inbox_generation',0)
             msg._inbox_journal_id=self.b.journal.add('owner',ident,'inbox','receive')[0]
             self.b._inbox_q.put((msg,'owner','analyze'))
         self.b._inbox_q.put(None)

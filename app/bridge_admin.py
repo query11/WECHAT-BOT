@@ -645,7 +645,8 @@ class AdminMixin(object):
             repeated = bool(control and control.requested.is_set())
             stopped = control.cancel() if control is not None else False
             if all_of_queue:
-                self._inbox_cancel_before = time.monotonic()
+                # A generation distinguishes even receives within one Windows clock tick.
+                self._inbox_generation = getattr(self, '_inbox_generation', 0) + 1
         if run is not None and control is None:
             stopped = self.runner.cancel()
         inbox_queue = getattr(self,"_inbox_q",None)

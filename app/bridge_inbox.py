@@ -253,7 +253,7 @@ class InboxMixin(object):
                         self._batch_finish_inbox(msg, 'cancelled')
                     return True, "🔕 这条附件已有记录，不自动重复接收。发 /tasks 查看。"
                 msg._inbox_journal_id = ident
-            msg._inbox_enqueued_at = time.monotonic()
+            msg._inbox_generation = getattr(self, '_inbox_generation', 0)
             self._inbox_q.put_nowait((msg, uid, body))
         except Exception:                     # queue.Full / journal failure
             try:
@@ -287,8 +287,8 @@ class InboxMixin(object):
                 msg._inbox_summary = ""
                 msg._inbox_outputs = []
                 self._inbox_active = {"uid": item[1], "cancel": control}
-                cutoff = getattr(self,"_inbox_cancel_before",0)
-                if cutoff and getattr(msg,"_inbox_enqueued_at",0) <= cutoff:
+                generation = getattr(self, '_inbox_generation', 0)
+                if getattr(msg, '_inbox_generation', 0) < generation:
                     control.cancel()
                 journal = getattr(self, "journal", None)
                 ident = getattr(msg, "_inbox_journal_id", None)
@@ -685,7 +685,7 @@ class InboxMixin(object):
         uid = getattr(msg, "from_user_id", "")
         try:
             self._inbox_receipt(msg,'queued')
-            msg._inbox_enqueued_at = time.monotonic()
+            msg._inbox_generation = getattr(self, '_inbox_generation', 0)
             self._inbox_q.put_nowait((msg,uid,p.get('body') or ''))
             return "⏳ 已继续接收附件，可以用 /stop 停止。"
         except Exception:

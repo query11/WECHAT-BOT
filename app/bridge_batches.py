@@ -161,7 +161,7 @@ class BatchMixin:
             msg._batch_intake_done = False
             self.batch_store.begin_intake(uid, batch['id'], str(msg.message_id))
             msg._batch_recent_entries = entries
-            msg._inbox_enqueued_at = time.monotonic()
+            msg._inbox_generation = getattr(self, '_inbox_generation', 0)
             self._inbox_q.put_nowait((msg, uid, ''))
             return ('📦 正在后台核对选定的 %d 个最近附件。批次编号：%s。'
                     '准备完成后会发清单，请核对后再 seal；后续附件不会补入这份最近清单。' % (len(entries), batch['id']))
