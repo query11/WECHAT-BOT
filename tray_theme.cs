@@ -9,6 +9,7 @@ public static class TrayDesign {
     // white cards and on PageColor; indicator tokens are for dots and icons only.
     public static readonly Color Blue=Color.FromArgb(32,108,198);          // #206CC6, white text 5.2:1
     public static readonly Color BlueSoft=Color.FromArgb(238,244,252);     // selected chips, link hover
+    public static readonly Color BrandBlue=Color.FromArgb(40,116,236);     // app icon middle tone, not for text
     public static readonly Color Heading=Color.FromArgb(25,43,69);         // #192B45
     public static readonly Color TextColor=Color.FromArgb(44,62,80);       // #2C3E50
     public static readonly Color MutedColor=Color.FromArgb(95,110,130);    // #5F6E82
@@ -45,26 +46,51 @@ public static class TrayDesign {
         p.AddArc(r.X,r.Y,d,d,180,90); p.AddArc(r.Right-d,r.Y,d,d,270,90);
         p.AddArc(r.Right-d,r.Bottom-d,d,d,0,90); p.AddArc(r.X,r.Bottom-d,d,d,90,90); p.CloseFigure(); return p;
     }
+    // Same shape language as tools/build_icon.py (64-unit coordinates). Up to 64 px it
+    // uses the simplified tray geometry: one large bubble, no back bubble.
     public static Bitmap Symbol(Color color, int size, string state) {
         var b = new Bitmap(size,size);
+        bool simple=size<=64;
         using(var g = Graphics.FromImage(b)) {
             g.SmoothingMode=SmoothingMode.AntiAlias; g.ScaleTransform(size/64f,size/64f);
-            using(var bg=new SolidBrush(color))
-            using(var p=Round(new RectangleF(3,3,58,58),15)) g.FillPath(bg,p);
-            using(var rear=new SolidBrush(Color.FromArgb(185,255,255,255)))
-            using(var p=Round(new RectangleF(27,27,26,21),6)) g.FillPath(rear,p);
-            using(var rear=new SolidBrush(Color.FromArgb(185,255,255,255))) g.FillPolygon(rear,new[]{new PointF(43,45),new PointF(48,52),new PointF(48,43)});
-            using(var p=Round(new RectangleF(12,14,34,25),7)) g.FillPath(Brushes.White,p);
-            g.FillPolygon(Brushes.White,new[]{new PointF(17,35),new PointF(17,45),new PointF(28,37)});
-            using(var pen=new Pen(color,2.5f)) {
+            var square=simple?new RectangleF(2,2,60,60):new RectangleF(4,4,56,56);
+            using(var bg=new LinearGradientBrush(square,Mix(color,Color.White,.24f),Mix(color,Color.Black,.10f),60f))
+            using(var p=Round(square,simple?16:14.5f)) g.FillPath(bg,p);
+            if(!simple) {
+                using(var rear=new SolidBrush(Color.FromArgb(118,255,255,255))) {
+                    using(var p=Round(new RectangleF(29,19.5f,24.5f,20),7)) g.FillPath(rear,p);
+                    g.FillPolygon(rear,new[]{new PointF(44,37.5f),new PointF(51.5f,45.5f),new PointF(50,35)});
+                }
+            }
+            var bubble=simple?new RectangleF(7.5f,15.5f,44.5f,30.5f):new RectangleF(10.5f,22.5f,35.5f,24);
+            using(var p=Round(bubble,simple?10.5f:8.5f)) g.FillPath(Brushes.White,p);
+            g.FillPolygon(Brushes.White,simple
+                ?new[]{new PointF(13,42.5f),new PointF(11,54.5f),new PointF(25,44.5f)}
+                :new[]{new PointF(15.5f,43.5f),new PointF(13.5f,53),new PointF(26,45)});
+            Color ink=Readable(color,Color.White);
+            float cx=bubble.X+bubble.Width/2,cy=bubble.Y+bubble.Height/2;
+            using(var pen=new Pen(ink,simple?3.4f:2.6f)) {
                 pen.StartCap=pen.EndCap=LineCap.Round;
-                if(state=="error" || state=="error-stale") {g.DrawLine(pen,25,22,33,31);g.DrawLine(pen,33,22,25,31);}
-                else if(state=="reconnecting" || state=="stopping" || state=="draining") {g.DrawLine(pen,29,20,29,27);g.DrawLine(pen,29,31,29,31.5f);}
-                else if(state=="stopped") {g.DrawLine(pen,23,27,35,27);}
-                else {g.DrawLine(pen,20,23,38,23);g.DrawLine(pen,20,30,32,30);}
+                float r=simple?6.5f:5f;
+                if(state=="error" || state=="error-stale") {g.DrawLine(pen,cx-r,cy-r,cx+r,cy+r);g.DrawLine(pen,cx+r,cy-r,cx-r,cy+r);}
+                else if(state=="reconnecting" || state=="stopping" || state=="draining") {g.DrawLine(pen,cx,cy-r-1,cx,cy+r*.35f);g.DrawLine(pen,cx,cy+r+.5f,cx,cy+r+.6f);}
+                else if(state=="stopped") {g.DrawLine(pen,cx-r-1,cy,cx+r+1,cy);}
+                else using(var brush=new SolidBrush(ink)) {
+                    g.FillPolygon(brush,Sparkle(simple?cx:cx-2,simple?cy+.25f:cy+.75f,simple?11f:9.5f));
+                    if(!simple)g.FillPolygon(brush,Sparkle(cx+8,cy-6,3.8f));
+                }
             }
         }
         return b;
+    }
+    // Four-point star with concave sides, matching the app icon's sparkle.
+    public static PointF[] Sparkle(float cx, float cy, float radius) {
+        var points=new PointF[72];
+        for(int i=0;i<points.Length;i++) {
+            double t=2*Math.PI*i/points.Length,c=Math.Cos(t),s=Math.Sin(t);
+            points[i]=new PointF(cx+(float)(radius*Math.Sign(c)*Math.Pow(Math.Abs(c),2/.72)),cy+(float)(radius*Math.Sign(s)*Math.Pow(Math.Abs(s),2/.72)));
+        }
+        return points;
     }
     public static Bitmap Glyph(string kind, Color color, int size) {
         var b=new Bitmap(size,size);
@@ -116,6 +142,13 @@ public static class TrayDesign {
             } else if(kind=="log") {
                 using(var p=Round(new RectangleF(4,3,16,18),2))g.DrawPath(pen,p);
                 for(int y=8;y<=16;y+=4){g.DrawLine(pen,8,y,8.2f,y);g.DrawLine(pen,11,y,16,y);}
+            } else if(kind=="folder") {
+                g.DrawLines(pen,new[]{new PointF(3,18),new PointF(3,6),new PointF(9,6),new PointF(11,8.5f),new PointF(21,8.5f),new PointF(21,18),new PointF(3,18)});
+                g.DrawLine(pen,3,11.5f,21,11.5f);
+            } else if(kind=="bookmark") {
+                g.DrawLines(pen,new[]{new PointF(6,3),new PointF(18,3),new PointF(18,21),new PointF(12,16.5f),new PointF(6,21),new PointF(6,3)});
+            } else if(kind=="clip") {
+                g.DrawLines(pen,new[]{new PointF(16.5f,7),new PointF(9,14.5f),new PointF(9,16),new PointF(11,18),new PointF(12.5f,18),new PointF(20,10.5f),new PointF(20,7),new PointF(17,4),new PointF(14,4),new PointF(5.5f,12.5f),new PointF(5.5f,17),new PointF(9,20.5f),new PointF(13,20.5f),new PointF(15,18.5f)});
             } else if(kind=="task") {
                 g.DrawLines(pen,new[]{new PointF(8,4),new PointF(5,4),new PointF(5,21),new PointF(19,21),new PointF(19,4),new PointF(16,4)});
                 using(var p=Round(new RectangleF(8,2,8,4),1))g.DrawPath(pen,p);
@@ -163,6 +196,73 @@ public static class TrayDesign {
             var shadow=face;shadow.Offset(0,layer*scale);
             using(var path=Round(shadow,radius))
             using(var brush=new SolidBrush(Color.FromArgb(opacity,tint)))graphics.FillPath(brush,path);
+        }
+    }
+}
+// Tray context menu: white surface, rounded hover, inset separators, palette colors.
+public class TrayMenuColors : ProfessionalColorTable {
+    public override Color ToolStripDropDownBackground {get{return TrayDesign.CardColor;}}
+    public override Color ImageMarginGradientBegin {get{return TrayDesign.CardColor;}}
+    public override Color ImageMarginGradientMiddle {get{return TrayDesign.CardColor;}}
+    public override Color ImageMarginGradientEnd {get{return TrayDesign.CardColor;}}
+    public override Color MenuBorder {get{return Color.FromArgb(214,221,229);}}
+    public override Color MenuItemBorder {get{return TrayDesign.BlueSoft;}}
+    public override Color MenuItemSelected {get{return TrayDesign.BlueSoft;}}
+    public override Color SeparatorDark {get{return TrayDesign.DividerColor;}}
+    public override Color SeparatorLight {get{return TrayDesign.CardColor;}}
+}
+public class TrayMenuRenderer : ToolStripProfessionalRenderer {
+    public TrayMenuRenderer() : base(new TrayMenuColors()) { RoundedEdges=false; }
+    static float Scale(Graphics g){return g.DpiX/96f;}
+    protected override void OnRenderToolStripBackground(ToolStripRenderEventArgs e) {
+        using(var brush=new SolidBrush(TrayDesign.CardColor))e.Graphics.FillRectangle(brush,e.AffectedBounds);
+    }
+    protected override void OnRenderImageMargin(ToolStripRenderEventArgs e) {
+        using(var brush=new SolidBrush(TrayDesign.CardColor))e.Graphics.FillRectangle(brush,e.AffectedBounds);
+    }
+    protected override void OnRenderMenuItemBackground(ToolStripItemRenderEventArgs e) {
+        if(!e.Item.Selected && !e.Item.Pressed)return;
+        var g=e.Graphics;g.SmoothingMode=SmoothingMode.AntiAlias;float s=Scale(g);
+        var face=new RectangleF(4*s,1*s,e.Item.Width-8*s,e.Item.Height-2*s);
+        using(var path=TrayDesign.Round(face,6*s))
+        using(var brush=new SolidBrush(e.Item.Enabled?TrayDesign.BlueSoft:Color.FromArgb(246,247,249)))g.FillPath(brush,path);
+    }
+    protected override void OnRenderItemText(ToolStripItemTextRenderEventArgs e) {
+        e.TextColor=!e.Item.Enabled?TrayDesign.DisabledText:(e.Item is ToolStripLabel?TrayDesign.Heading:TrayDesign.TextColor);
+        base.OnRenderItemText(e);
+    }
+    protected override void OnRenderSeparator(ToolStripSeparatorRenderEventArgs e) {
+        float s=Scale(e.Graphics);int y=e.Item.Height/2;
+        using(var pen=new Pen(TrayDesign.DividerColor))e.Graphics.DrawLine(pen,(int)(12*s),y,e.Item.Width-(int)(12*s),y);
+    }
+    protected override void OnRenderArrow(ToolStripArrowRenderEventArgs e) {
+        e.ArrowColor=e.Item==null || e.Item.Enabled?TrayDesign.MutedColor:TrayDesign.DisabledText;
+        base.OnRenderArrow(e);
+    }
+    protected override void OnRenderItemCheck(ToolStripItemImageRenderEventArgs e) {
+        var g=e.Graphics;g.SmoothingMode=SmoothingMode.AntiAlias;var r=e.ImageRectangle;
+        using(var path=TrayDesign.Round(new RectangleF(r.X-1,r.Y-1,r.Width+2,r.Height+2),4*Scale(g)))
+        using(var brush=new SolidBrush(TrayDesign.BlueSoft))g.FillPath(brush,path);
+        var saved=g.Save();g.TranslateTransform(r.X,r.Y);g.ScaleTransform(r.Width/24f,r.Height/24f);
+        TrayDesign.DrawGlyph(g,"check",e.Item.Enabled?TrayDesign.Blue:TrayDesign.DisabledText);g.Restore(saved);
+    }
+}
+public static class TrayMenuStyle {
+    [DllImport("dwmapi.dll")] static extern int DwmSetWindowAttribute(IntPtr hwnd,int attribute,ref int value,int size);
+    // Windows 11 rounds popup corners on request; older systems ignore the call.
+    static void RoundCorners(object sender,EventArgs e) {
+        try { int round=2; DwmSetWindowAttribute(((Control)sender).Handle,33,ref round,4); } catch {}
+    }
+    public static void Apply(ToolStripDropDown menu, float scale) {
+        menu.Renderer=new TrayMenuRenderer();
+        menu.ImageScalingSize=new Size((int)Math.Round(18*scale),(int)Math.Round(18*scale));
+        menu.Padding=new Padding(0,(int)(4*scale),0,(int)(4*scale));
+        menu.HandleCreated+=RoundCorners;
+        foreach(ToolStripItem item in menu.Items) {
+            if(item is ToolStripSeparator)continue;
+            item.Padding=new Padding(0,(int)(3*scale),0,(int)(3*scale));
+            var sub=item as ToolStripMenuItem;
+            if(sub!=null && sub.HasDropDownItems)Apply(sub.DropDown,scale);
         }
     }
 }

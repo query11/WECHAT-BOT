@@ -137,14 +137,15 @@ function Glyph($parent,$kind,$x,$y,$size,$color=$accent) {
 }
 function Card-Heading($parent,$text,$kind) {
     $icon=Glyph $parent $kind 24 24 20
-    $label=Label $text 56 20 240 28 13.5 $parent
-    $label.Font=New-Object Drawing.Font('Microsoft YaHei UI',13.5,[Drawing.FontStyle]::Bold)
+    $label=Label $text 44 8 240 28 12 $parent
+    # 12pt keeps card titles calmer than the content they introduce.
+    $label.Font=New-Object Drawing.Font('Microsoft YaHei UI',12,[Drawing.FontStyle]::Bold)
     $label.Tag=$icon
     return $label
 }
 $brand=New-Object Windows.Forms.PictureBox
 $brand.Location=New-Object Drawing.Point(24,24);$brand.Size=New-Object Drawing.Size(40,40)
-$brand.SizeMode='Zoom';$brand.Image=[TrayDesign]::Symbol($accent,96,'standby');$form.Controls.Add($brand)
+$brand.SizeMode='Zoom';$brand.Image=[TrayDesign]::Symbol([TrayDesign]::BrandBlue,96,'standby');$form.Controls.Add($brand)
 $title=Label '微信助手' 80 16 350 32 16
 # 16pt keeps the brand below the 18pt assistant state, which is the main reading point.
 $title.Font=New-Object Drawing.Font('Microsoft YaHei UI',16,[Drawing.FontStyle]::Bold);$title.ForeColor=[TrayDesign]::Heading
@@ -193,8 +194,8 @@ $backendTip.SetToolTip($deepseekButton,'切换后立即生效；两套对话分�
 $backendTip.SetToolTip($claudeButton,'使用已保存的 Claude 配置；两套对话分别保留。任务处理中暂不可切换。')
 $modelRule=Divider $modelCard 24 120 312
 $modelCaption=Label '当前模型' 24 128 312 24 9.75 $modelCard;$modelCaption.ForeColor=$muted
-$modelName=Label '正在读取…' 24 152 312 32 13.5 $modelCard;$modelName.Font=New-Object Drawing.Font('Microsoft YaHei UI',13.5,[Drawing.FontStyle]::Bold)
-$modelStatus=Label '尚无模型调用记录' 24 184 312 40 9.75 $modelCard;$modelStatus.ForeColor=$muted
+$modelName=Label '正在读取…' 24 152 312 32 12 $modelCard;$modelName.Font=New-Object Drawing.Font('Microsoft YaHei UI',12,[Drawing.FontStyle]::Bold)
+$modelStatus=Label '尚无模型调用记录' 24 184 312 40 9.75 $modelCard;$modelStatus.ForeColor=$muted;$modelStatus.TextAlign='TopLeft'
 $backendTip.SetToolTip($modelStatus,'根据实际模型任务更新，不会自动发送收费请求。显示上次调用结果，不代表持续探测在线。')
 $settingsButton=New-Object TrayButton;$settingsButton.Text='后端配置';$settingsButton.IconKind='';$settingsButton.Navigate=$false;$settingsButton.Link=$true
 $settingsButton.SetBounds(24,232,312,48);$settingsButton.Font=New-Object Drawing.Font('Microsoft YaHei UI',9.75);$modelCard.Controls.Add($settingsButton)
@@ -227,7 +228,9 @@ $quickRun=New-Object TrayButton;$quickRun.Text='运行模板';$quickRun.Font=New
 $quickRun.Add_Click({$id='';if($favoriteChoice.SelectedIndex -ge 0 -and $favoriteChoice.SelectedIndex -lt $script:favorites.Count){$id=[string]$script:favorites[$favoriteChoice.SelectedIndex].id};Open-Workflow 'templates' $id})
 $fileTaskButton=New-Object TrayButton;$fileTaskButton.Text='文件任务';$fileTaskButton.Font=New-Object Drawing.Font('Microsoft YaHei UI',9.75);$entryCard.Controls.Add($fileTaskButton);$fileTaskButton.Add_Click({Open-Workflow 'localfiles'})
 $batchButton=New-Object TrayButton;$batchButton.Text='附件核对';$batchButton.Font=New-Object Drawing.Font('Microsoft YaHei UI',9.75);$entryCard.Controls.Add($batchButton);$batchButton.Add_Click({Open-Workflow 'batches'})
-$appsButton.Description='';$memoryButton.Description='';$appsButton.Navigate=$false;$memoryButton.Navigate=$false;$appsButton.IconKind='';$memoryButton.IconKind=''
+$appsButton.Navigate=$false;$memoryButton.Navigate=$false
+# Icon and description used when the entry card has room for 2x2 tiles (see Layout-RunCenter).
+$script:entryTiles=@(@($fileTaskButton,'folder','处理本机文件'),@($batchButton,'clip','核对微信附件'),@($scheduleButton,'clock','提醒与自动任务'),@($templatesButton,'log','保存常用要求'),@($appsButton,'apps','收藏与应用简称'),@($memoryButton,'bookmark','工作目录与偏好'))
 $resultRevise=New-Object TrayButton;$resultRevise.Text='继续修改';$resultRevise.Quiet=$true;$resultRevise.Link=$true;$resultRevise.Font=New-Object Drawing.Font('Microsoft YaHei UI',9.75);$taskCard.Controls.Add($resultRevise);$resultRevise.Add_Click({if($script:resultCard){Open-Workflow 'revise' '' ([string]$script:resultCard.id)}})
 $resultButton=New-Object TrayButton;$resultButton.Text='全部结果';$resultButton.Quiet=$true;$resultButton.Link=$true;$resultButton.Font=New-Object Drawing.Font('Microsoft YaHei UI',9.75);$taskCard.Controls.Add($resultButton);$resultButton.Add_Click({Open-Workflow 'results'})
 $resultPanel=New-Object Windows.Forms.Panel;$resultPanel.BackColor=[Drawing.Color]::Transparent;$taskCard.Controls.Add($resultPanel);$resultPanel.Visible=$false
@@ -245,7 +248,7 @@ $resultFiles.Add_SelectedIndexChanged({Update-ResultFileActions})
 $script:favorites=@();$script:resultFileRows=@();$script:favoriteSignature='';$script:resultSignature=''
 $logCard=Card 24 584 536 184
 $logTitle=Card-Heading $logCard '最近动态' 'activity'
-$historyButton=New-Object TrayButton;$historyButton.Text='任务记录';$historyButton.IconKind='history';$historyButton.Navigate=$false;$historyButton.Quiet=$true
+$historyButton=New-Object TrayButton;$historyButton.Text='全部记录';$historyButton.IconKind='';$historyButton.Navigate=$false;$historyButton.Quiet=$true;$historyButton.Link=$true
 $historyButton.SetBounds(368,16,144,32);$historyButton.Font=New-Object Drawing.Font('Microsoft YaHei UI',9.75)
 $historyButton.Add_Click({Open-UtilityWindow 'task_history.ps1' '任务记录'});$logCard.Controls.Add($historyButton)
 $records=New-Object Windows.Forms.TextBox
@@ -275,7 +278,7 @@ $logButton=New-Object TrayButton;$logButton.Text='打开日志';$logButton.IconK
 $logButton.Font=New-Object Drawing.Font('Microsoft YaHei UI',10.5);$logButton.Add_Click({Start-Process notepad.exe -ArgumentList ('"'+(Join-Path $root 'bridge.log')+'"')});$maintenanceCard.Controls.Add($logButton)
 $maintenanceGuide=Label '空闲时可重启服务' 24 104 312 24 9.75 $maintenanceCard;$maintenanceGuide.ForeColor=$muted
 $hint=Label '准备就绪' 24 776 912 24 9.75;$hint.ForeColor=$muted
-$footer=Label '关闭窗口后仍在托盘运行 · 在微信发送“开始对话”也可唤醒' 24 800 912 24 9.75;$footer.ForeColor=$muted
+$footer=Label '关闭窗口后仍在托盘运行 · 在微信发送“开始对话”也可唤醒' 24 800 912 24 9.75;$footer.ForeColor=$muted;$footer.TextAlign='MiddleRight'
 [TrayDesign]::EnableDepth($form)
 
 # Reflow the existing cards on the same 8px grid; dimensions below are logical pixels.
@@ -356,6 +359,8 @@ function Refresh-Actions($s,$alive) {
     $wakeHelp.Text=switch($script:lastState){'working'{'待机会暂停新任务，已有任务继续收尾'};'draining'{'已有任务继续收尾，可恢复接收新任务'};default{'在微信发送“开始对话”也可唤醒'}}
     if($wakeMenu){$wakeMenu.Enabled=$ready -and $script:lastState -in @('standby','draining')}
     if($standbyMenu){$standbyMenu.Enabled=$ready -and $script:lastState -eq 'working'}
+    # Only the action that applies to the current state is listed in the tray menu.
+    if($wakeMenu -and $standbyMenu){$standbyMenu.Available=($script:lastState -eq 'working');$wakeMenu.Available=-not $standbyMenu.Available}
     if($restartMenu){$restartMenu.Enabled=$restartButton.Enabled;$restartMenu.ToolTipText=$maintenanceGuide.Text}
     if($exitMenu){$exitMenu.Enabled=-not $waiting -and -not $busy;$exitMenu.ToolTipText=if($busy){'请等待任务与附件完成后再退出。'}else{'停止后台并退出；之后微信将无法唤醒助手。'}}
 }
@@ -415,30 +420,52 @@ $tray=New-Object Windows.Forms.NotifyIcon
 $tray.Text='微信助手 · 正在连接'; $tray.Visible=$true
 $menu=New-Object Windows.Forms.ContextMenuStrip
 $menu.Font=New-Object Drawing.Font('Microsoft YaHei UI',10)
-$menu.ShowImageMargin=$false
 $menu.ShowItemToolTips=$true
 $menu.BackColor=[TrayDesign]::CardColor
-$menu.ForeColor=[TrayDesign]::Heading
-$null=$menu.Items.Add('打开运行中心',$null,{ $form.Show(); $form.WindowState='Normal'; $form.Activate() })
-$wakeMenu=$menu.Items.Add('唤醒助手',$null,{ Send-Control 'wake' })
-$standbyMenu=$menu.Items.Add('进入待机',$null,{ Send-Control 'standby' })
-$null=$menu.Items.Add('固定记忆',$null,{Open-UtilityWindow 'memory_editor.ps1' '固定记忆'})
-$backendMenu=New-Object Windows.Forms.ToolStripMenuItem('模型后端')
-$deepseekMenu=$backendMenu.DropDownItems.Add('DeepSeek 官方',$null,{Request-Backend 'deepseek'})
-$claudeMenu=$backendMenu.DropDownItems.Add('Claude',$null,{Request-Backend 'claude'})
-$null=$menu.Items.Add($backendMenu)
-$null=$menu.Items.Add('后端配置',$null,{Open-UtilityWindow 'backend_editor.ps1' '后端配置'})
-$null=$menu.Items.Add('任务模板',$null,{Open-UtilityWindow 'template_editor.ps1' '任务模板'})
-$null=$menu.Items.Add('定时任务',$null,{Open-Workflow 'schedules'})
-$null=$menu.Items.Add('文件任务',$null,{Open-Workflow 'localfiles'})
-$null=$menu.Items.Add('运行模板',$null,{Open-Workflow 'templates'})
-$null=$menu.Items.Add('附件核对',$null,{Open-Workflow 'batches'})
-$null=$menu.Items.Add('任务结果',$null,{Open-Workflow 'results'})
-$null=$menu.Items.Add('任务记录',$null,{Open-UtilityWindow 'task_history.ps1' '任务记录'})
-$null=$menu.Items.Add('常用应用',$null,{Open-UtilityWindow 'app_settings.ps1' '常用应用'})
-
-$restartMenu=$menu.Items.Add('重启服务',$null,{ Request-Restart })
-$exitMenu=$menu.Items.Add('退出程序',$null,{ Request-Exit })
+$menuScale=1;try{$screen=[Drawing.Graphics]::FromHwnd([IntPtr]::Zero);$menuScale=$screen.DpiX/96;$screen.Dispose()}catch{}
+function Add-MenuItem($items,$text,$kind,$action) {
+    $item=New-Object Windows.Forms.ToolStripMenuItem($text)
+    if($kind){$item.Image=[TrayDesign]::Glyph($kind,[TrayDesign]::MutedColor,[int](36*$menuScale))}
+    if($action){$item.Add_Click($action)}
+    $null=$items.Add($item);return $item
+}
+function Add-MenuSeparator($items) {$null=$items.Add((New-Object Windows.Forms.ToolStripSeparator))}
+# Status line, then: open/wake, task entries, settings, service. Labels match the run center buttons.
+$menuHeader=New-Object Windows.Forms.ToolStripLabel('正在连接微信')
+$menuHeader.Font=New-Object Drawing.Font('Microsoft YaHei UI',10,[Drawing.FontStyle]::Bold);$null=$menu.Items.Add($menuHeader)
+Add-MenuSeparator $menu.Items
+$openMenu=Add-MenuItem $menu.Items '打开运行中心' '' { $form.Show(); $form.WindowState='Normal'; $form.Activate() }
+$openMenu.Font=New-Object Drawing.Font($menu.Font,[Drawing.FontStyle]::Bold);$openMenu.Image=[TrayDesign]::Symbol([TrayDesign]::BrandBlue,64,'standby')
+$wakeMenu=Add-MenuItem $menu.Items '唤醒助手' 'send' { Send-Control 'wake' }
+$standbyMenu=Add-MenuItem $menu.Items '进入待机' 'power' { Send-Control 'standby' }
+Add-MenuSeparator $menu.Items
+$quickMenu=Add-MenuItem $menu.Items '快捷任务' 'task' $null
+$null=Add-MenuItem $quickMenu.DropDownItems '运行模板' 'task' {Open-Workflow 'templates'}
+$null=Add-MenuItem $quickMenu.DropDownItems '文件任务' 'folder' {Open-Workflow 'localfiles'}
+$null=Add-MenuItem $quickMenu.DropDownItems '附件核对' 'clip' {Open-Workflow 'batches'}
+$null=Add-MenuItem $quickMenu.DropDownItems '定时任务' 'clock' {Open-Workflow 'schedules'}
+$null=Add-MenuItem $menu.Items '任务结果' 'check' {Open-Workflow 'results'}
+$null=Add-MenuItem $menu.Items '任务记录' 'history' {Open-UtilityWindow 'task_history.ps1' '任务记录'}
+Add-MenuSeparator $menu.Items
+$settingsMenu=Add-MenuItem $menu.Items '设置' 'settings' $null
+$backendMenu=Add-MenuItem $settingsMenu.DropDownItems '模型后端' 'cube' $null
+$deepseekMenu=Add-MenuItem $backendMenu.DropDownItems 'DeepSeek 官方' '' {Request-Backend 'deepseek'}
+$claudeMenu=Add-MenuItem $backendMenu.DropDownItems 'Claude' '' {Request-Backend 'claude'}
+$null=Add-MenuItem $settingsMenu.DropDownItems '后端配置' 'settings' {Open-UtilityWindow 'backend_editor.ps1' '后端配置'}
+Add-MenuSeparator $settingsMenu.DropDownItems
+$null=Add-MenuItem $settingsMenu.DropDownItems '任务模板' 'log' {Open-UtilityWindow 'template_editor.ps1' '任务模板'}
+$null=Add-MenuItem $settingsMenu.DropDownItems '常用应用' 'apps' {Open-UtilityWindow 'app_settings.ps1' '常用应用'}
+$null=Add-MenuItem $settingsMenu.DropDownItems '固定记忆' 'bookmark' {Open-UtilityWindow 'memory_editor.ps1' '固定记忆'}
+Add-MenuSeparator $menu.Items
+$restartMenu=Add-MenuItem $menu.Items '重启服务' 'restart' { Request-Restart }
+$exitMenu=Add-MenuItem $menu.Items '退出程序' 'power' { Request-Exit }
+[TrayMenuStyle]::Apply($menu,$menuScale)
+function Find-MenuItem($items,$text) {
+    foreach($item in $items){
+        if($item.Text -eq $text){return $item}
+        if($item -is [Windows.Forms.ToolStripMenuItem] -and $item.HasDropDownItems){$found=Find-MenuItem $item.DropDownItems $text;if($found){return $found}}
+    }
+}
 $tray.ContextMenuStrip=$menu
 $tray.Add_DoubleClick({$form.Show();$form.WindowState='Normal';$form.Activate()})
 function Set-Indicator($key,$caption) {
@@ -458,6 +485,7 @@ function Set-Indicator($key,$caption) {
     $statusCard.Border=$border
     $statusRule.BackColor=$statusCard.Border;$statusCard.Invalidate($true)
     $bitmap=[TrayDesign]::Symbol($c,64,$key)
+    $oldHeader=$menuHeader.Image;$menuHeader.Image=[TrayDesign]::Symbol($c,64,$key);if($oldHeader){$oldHeader.Dispose()}
     $handle=$bitmap.GetHicon();$borrowed=[Drawing.Icon]::FromHandle($handle);$icon=$borrowed.Clone()
     $old=$tray.Icon;$tray.Icon=$icon;$form.Icon=$icon
     if($old){$old.Dispose()};$borrowed.Dispose();[TrayNative]::DestroyIcon($handle)|Out-Null
@@ -486,6 +514,7 @@ function Show-Snapshot($s,$alive,$now) {
     # The badge draws its dot in this color and darkens the text to a readable shade.
     $connectionBadge.StatusColor=switch($key){'standby'{[TrayDesign]::Success};'working'{[TrayDesign]::Success};'draining'{[TrayDesign]::Warning};'reconnecting'{[TrayDesign]::Warning};'error'{[TrayDesign]::Danger};'error-stale'{[TrayDesign]::Danger};default{[TrayDesign]::MutedColor}}
     $connectionBadge.Invalidate()
+    $menuHeader.Text=$state.Text+' · '+$connectionBadge.Text
     if($s){
       $last='尚未成功通信';if($s.last_success -gt 0){$last=[DateTimeOffset]::FromUnixTimeSeconds([long]$s.last_success).LocalDateTime.ToString('HH:mm:ss')}
       $duration=[TimeSpan]::FromSeconds([Math]::Max(0,$now-$s.started))
@@ -648,7 +677,7 @@ if($VerifyWindows){
    $form.Activate();$panel.button.PerformClick()
    if($script:utilityWindows[$panel.file].process.Id -ne $entry.process.Id){throw 'Repeated click created another process'}
    $form.Hide();[Windows.Forms.Application]::DoEvents()
-   $menuItem=$menu.Items | Where-Object {$_.Text -eq $panel.label}
+   $menuItem=Find-MenuItem $menu.Items $panel.label
    $menuItem.PerformClick()
    if($script:utilityWindows[$panel.file].process.Id -ne $entry.process.Id -or -not [TrayNative]::IsWindowVisible($entry.process.MainWindowHandle)){throw 'Hidden tray entry failed'}
    Write-Output ('PASS button, visible window, repeated click and hidden tray entry: '+$panel.label)
@@ -818,7 +847,7 @@ if($VerifyWindows){
     if([Windows.Forms.TextRenderer]::MeasureText($label.Text,$label.Font).Width -gt $label.Width){throw ('Metric label clipped: '+$label.Text)}
    }
    Show-Snapshot $script:snapshot $true $now
-   if($appsButton.Height -ne $memoryButton.Height -or $quickRun.Height -ne $batchButton.Height){throw 'Quick action row heights must match'}
+   if(@($fileTaskButton,$batchButton,$appsButton,$memoryButton | ForEach-Object {$_.Height} | Select-Object -Unique).Count -ne 1){throw 'Quick action heights must match'}
    $image=New-Object Drawing.Bitmap($form.Width,$form.Height);$form.DrawToBitmap($image,(New-Object Drawing.Rectangle(0,0,$form.Width,$form.Height)))
    $image.Save((Join-Path $reviewDir ('tray-'+$sizeLabel+'.png')));$image.Dispose()
    foreach($scenario in @('busy','error')){

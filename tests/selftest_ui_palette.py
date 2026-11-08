@@ -49,10 +49,19 @@ class PaletteTests(unittest.TestCase):
 
     def test_every_referenced_theme_member_exists(self):
         source = THEME.read_text(encoding='utf-8')
-        members = set(re.findall(r'public static (?:readonly )?[\w<>\[\]]+ (\w+)\s*[=(;]', source))
+        members = {}
+        for block in re.split(r'\n(?=public (?:static )?class )', source):
+            name = re.match(r'public (?:static )?class (\w+)', block)
+            if name:
+                members[name.group(1)] = set(re.findall(
+                    r'public static (?:readonly )?[\w<>\[\]]+ (\w+)\s*[=(;]', block))
+        self.assertIn('TrayDesign', members)
         for path in ui_scripts():
-            used = set(re.findall(r'\[TrayDesign\]::(\w+)', path.read_text(encoding='utf-8-sig')))
-            self.assertEqual(used - members, set(), path.name)
+            for cls, member in set(re.findall(r'\[(Tray\w+)\]::(\w+)', path.read_text(encoding='utf-8-sig'))):
+                if cls == 'TrayNative':   # declared inline in tray_app.ps1
+                    continue
+                self.assertIn(cls, members, '%s uses unknown class %s' % (path.name, cls))
+                self.assertIn(member, members[cls], '%s uses %s::%s' % (path.name, cls, member))
 
     def test_windows_use_shared_tokens_instead_of_literal_colors(self):
         literal = re.compile(r"FromHtml\('#[0-9A-Fa-f]{6}'\)|\[Drawing\.Color\]::SlateGray")
