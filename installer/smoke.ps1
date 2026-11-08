@@ -41,7 +41,16 @@ function Install($label) {
 }
 function Uninstall($label) {
     Run-Exe (Join-Path $install 'unins000.exe') ('/VERYSILENT /SUPPRESSMSGBOXES /NORESTART /LOG="' + (Join-Path $logs ($label + '.log')) + '"')
-    foreach ($name in @('app','desktop','runtime','tests','tools','docs','.github','installer','__pycache__')) {
+    $programDirs = @('app','desktop','runtime','tests','tools','docs','.github','installer','__pycache__')
+    # Inno's original uninstaller returns before its relocated cleanup process.
+    # Wait for the observable post-uninstall result, including untracked caches.
+    $deadline = [DateTime]::UtcNow.AddSeconds(30)
+    do {
+        $remaining = @($programDirs | Where-Object { Test-Path -LiteralPath (Join-Path $install $_) })
+        if (-not $remaining.Count) { break }
+        Start-Sleep -Milliseconds 200
+    } while ([DateTime]::UtcNow -lt $deadline)
+    foreach ($name in $programDirs) {
         Assert (-not (Test-Path -LiteralPath (Join-Path $install $name))) ('Program directory remains: ' + $name)
     }
     Assert (-not (Test-Path 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Uninstall\{7B90F140-0A4A-4EC0-BE50-786F15A7C6A5}_is1')) 'Uninstall registration remains'
