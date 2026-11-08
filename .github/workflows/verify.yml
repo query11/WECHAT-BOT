@@ -42,6 +42,10 @@ jobs:
         env:
           PYTHONIOENCODING: utf-8
         run: |
+          # Isolated CI-only example configuration lets the real memory window open.
+          if (Test-Path config.json) { throw 'UI verification requires a pristine checkout' }
+          Copy-Item config.example.json config.json
+          Copy-Item BOT_MEMORY.example.md BOT_MEMORY.md
           & powershell -NoProfile -STA -ExecutionPolicy Bypass -File desktop/tray_app.ps1 -VerifyUX
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           & powershell -NoProfile -STA -ExecutionPolicy Bypass -File desktop/tray_app.ps1 -VerifyWindows

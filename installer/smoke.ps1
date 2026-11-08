@@ -18,8 +18,12 @@ $python = Join-Path $install 'runtime\python\python.exe'
 $ps = Join-Path $env:SystemRoot 'System32\WindowsPowerShell\v1.0\powershell.exe'
 function Assert($condition, $message) { if (-not $condition) { throw $message } }
 function Run-Exe($path, $arguments) {
-    $proc = Start-Process -FilePath $path -ArgumentList $arguments -WindowStyle Hidden -PassThru
+    $id = [Guid]::NewGuid().ToString('N')
+    $stdout = Join-Path $logs ($id + '.stdout.log')
+    $stderr = Join-Path $logs ($id + '.stderr.log')
+    $proc = Start-Process -FilePath $path -ArgumentList $arguments -WindowStyle Hidden -PassThru -RedirectStandardOutput $stdout -RedirectStandardError $stderr
     if (-not $proc.WaitForExit(180000)) { throw ('Timed out: ' + $path) }
+    if ($proc.ExitCode -ne 0) { Get-Content -LiteralPath $stdout,$stderr | Write-Host }
     Assert ($proc.ExitCode -eq 0) ('Exit code ' + $proc.ExitCode + ': ' + $path)
 }
 function Install($label) {
@@ -76,7 +80,8 @@ try {
     $other = Join-Path $base 'other\app'
     [IO.Directory]::CreateDirectory($other) | Out-Null
     [IO.File]::WriteAllText((Join-Path $other 'wechat_bridge.py'), 'import time; time.sleep(150)')
-    $foreign = Start-Process (Get-Command python -CommandType Application).Source -ArgumentList ('"' + (Join-Path $other 'wechat_bridge.py') + '" run') -WindowStyle Hidden -PassThru
+    $foreignPython = (Get-Command python -CommandType Application | Select-Object -First 1).Source
+    $foreign = Start-Process $foreignPython -ArgumentList ('"' + (Join-Path $other 'wechat_bridge.py') + '" run') -WindowStyle Hidden -PassThru
     Install 'upgrade'
     Assert ($owned.WaitForExit(1000)) 'Upgrade failed to stop its backend'
     Assert (-not $foreign.HasExited) 'Upgrade killed another installation'

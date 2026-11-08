@@ -2,7 +2,7 @@
 # Run the unchanged integration assertions in the current interactive session.
 $ErrorActionPreference = 'Stop'
 $root = Split-Path -Parent $PSScriptRoot
-$python = (Get-Command python -CommandType Application).Source
+$python = (Get-Command python -CommandType Application | Select-Object -First 1).Source
 $name = 'WeChatIntegration-' + [Guid]::NewGuid().ToString('N')
 $report = Join-Path $root '.runtime\verification\github-integration\report.json'
 if (Test-Path -LiteralPath $report) { throw 'Integration report already exists' }

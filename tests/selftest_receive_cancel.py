@@ -85,6 +85,11 @@ class ReceiveCancelTests(unittest.TestCase):
         self.assertTrue(all(r['state']=='cancelled' for r in self.b.journal.recent()))
         self.b._enqueue.assert_not_called()
         msg,worker=self.start(['/fast']);worker.join(5)
-        self.assertEqual(self.b.journal.recent()[0]['state'],'completed')
+        self.assertFalse(worker.is_alive())
+        # Windows wall-clock timestamps can tie. Check this receipt by identity,
+        # not the unspecified ordering of rows with identical updated times.
+        rows={r['id']:r for r in self.b.journal.recent()}
+        self.assertEqual(rows[msg._inbox_journal_id]['state'],'completed')
+        self.b._enqueue.assert_called_once()
 
 if __name__=='__main__':unittest.main()
