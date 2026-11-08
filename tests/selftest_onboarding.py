@@ -66,7 +66,7 @@ class BridgePairingTests(Base):
     def test_binding_code_adds_the_sender_and_takes_effect_immediately(self):
         code = pairing.create(self.root)['code']
         self.fixture.send('绑定 ' + code, uid='wxid_new')
-        self.assertIn('绑定成功', self.last_reply())
+        self.assertIn('绑定成功', self.last_reply()); self.assertIn('示例', self.last_reply())
         self.assertEqual(self.b.allowed, {'wxid_new'})
         self.assertEqual(self.config()['allowed_user_ids'], ['wxid_new']); self.assertEqual(self.config()['keep'], 1)
         self.fixture.send('开始对话', uid='wxid_new')
@@ -128,8 +128,79 @@ class GuideServiceTests(Base):
         out = onboarding.execute(self.root, {'operation': 'pair'})
         self.assertRegex(out['code'], r'^\d{6}$'); self.assertTrue(out['pairing']['active'])
         self.assertFalse(onboarding.execute(self.root, {'operation': 'pair_cancel'})['pairing']['active'])
-        self.assertTrue(onboarding.execute(self.root, {'operation': 'complete'})['completed'])
+        self.assertFalse(onboarding.execute(self.root, {'operation': 'complete'})['ok'])   # disclaimer not accepted
+        self.assertTrue(onboarding.execute(self.root, {'operation': 'complete', 'accepted': True})['completed'])
+        marker = json.loads((self.root / '.runtime' / 'onboarding.json').read_text())
+        self.assertTrue(marker['disclaimer_accepted'])
         self.assertFalse(onboarding.execute(self.root, {'operation': 'nope'})['ok'])
+
+
+class ClaudeDetectionTests(Base):
+    """A fresh install of Claude Code is found before PATH catches up, without overriding a custom setting."""
+
+    def setUp(self):
+        super().setUp()
+        home = self.root / 'home'; (home / '.local' / 'bin').mkdir(parents=True)
+        self.exe = home / '.local' / 'bin' / 'claude.exe'
+        env = patch.dict(os.environ, {'USERPROFILE': str(home), 'APPDATA': str(self.root / 'appdata')})
+        which = patch('onboarding.shutil.which', return_value=None)
+        for p in (env, which):
+            p.start(); self.addCleanup(p.stop)
+
+    def test_link_writes_the_installed_path_only_for_the_default_setting(self):
+        self.assertIn('选择工作目录', onboarding.execute(self.root, {'operation': 'link_claude'})['message'])
+        onboarding.execute(self.root, {'operation': 'init', 'workdir': str(self.root / 'w')})
+        out = onboarding.execute(self.root, {'operation': 'link_claude'})
+        self.assertEqual((out['claude'], self.config()['claude_bin']), ('', 'claude'))
+        self.assertIn('没有找到', out['message'])
+        self.exe.write_bytes(b'')
+        out = onboarding.execute(self.root, {'operation': 'link_claude'})
+        self.assertEqual(self.config()['claude_bin'], str(self.exe)); self.assertEqual(out['claude'], str(self.exe))
+        cfg = self.config(); cfg['claude_bin'] = ['node', 'cli.js']
+        (self.root / 'config.json').write_text(json.dumps(cfg), encoding='utf-8-sig')
+        onboarding.execute(self.root, {'operation': 'link_claude'})
+        self.assertEqual(self.config()['claude_bin'], ['node', 'cli.js'])
+
+    def test_path_wins_and_init_links_a_fresh_install(self):
+        self.exe.write_bytes(b'')
+        onboarding.execute(self.root, {'operation': 'init', 'workdir': str(self.root / 'w')})
+        self.assertEqual(self.config()['claude_bin'], str(self.exe))
+        cfg = self.config(); cfg['claude_bin'] = 'claude'
+        (self.root / 'config.json').write_text(json.dumps(cfg), encoding='utf-8-sig')
+        with patch('onboarding.shutil.which', return_value='/usr/bin/claude'):
+            out = onboarding.execute(self.root, {'operation': 'link_claude'})
+        self.assertEqual((out['claude'], self.config()['claude_bin']), ('/usr/bin/claude', 'claude'))
+
+class StarterExampleTests(unittest.TestCase):
+    def setUp(self):
+        fixture = selftest_standby.StandbyTests(); fixture.setUp()
+        self.fixture, self.b = fixture, fixture.bridge
+
+    def replies(self):
+        return [c.args[1] for c in self.b.reply.call_args_list]
+
+    def test_help_examples_and_version_answer_in_standby_but_tasks_stay_blocked(self):
+        from bridge_text import EXAMPLES, HELP
+        for text in ('示例', '你能做什么？', '/help', '/version'):
+            self.fixture.send(text)
+        replies = self.replies()
+        self.assertEqual(replies[0], EXAMPLES); self.assertEqual(replies[1], EXAMPLES)
+        self.assertEqual(replies[2], HELP); self.assertIn('当前版本', replies[3])
+        self.fixture.send('打开浏览器')
+        self.assertIn('后台待机', self.replies()[-1]); self.b._dispatch_free.assert_not_called()
+
+    def test_awake_users_get_examples_from_the_normal_dispatch(self):
+        from bridge_text import EXAMPLES
+        from wechat_bridge import Bridge
+        self.b._awake = {'owner'}; self.b._parse_probe = lambda body, uid: None
+        self.b._dispatch_free = Bridge._dispatch_free.__get__(self.b)
+        self.fixture.send('示例')
+        self.assertEqual(self.replies()[-1], EXAMPLES)
+
+    def test_examples_are_plain_sendable_lines(self):
+        from bridge_text import EXAMPLES, HELP
+        self.assertIn('示例', HELP)
+        self.assertIn('开始对话', EXAMPLES); self.assertNotIn('/cc', EXAMPLES)
 
 
 class VersionCommandTests(Base):

@@ -8,6 +8,7 @@ Add-Type -AssemblyName System.Windows.Forms
 Add-Type -AssemblyName System.Drawing
 . (Join-Path $PSScriptRoot 'ui_preferences.ps1')
 Add-Type -Path (Join-Path $PSScriptRoot 'tray_theme.cs') -ReferencedAssemblies System.Windows.Forms,System.Drawing
+. (Join-Path $PSScriptRoot 'python_runtime.ps1')
 [TrayDesign]::EnableDpi();[Windows.Forms.Application]::EnableVisualStyles()
 $window=New-Object Windows.Forms.Form
 $window.AutoScaleDimensions=New-Object Drawing.SizeF(96,96);$window.AutoScaleMode='Dpi'
@@ -271,7 +272,7 @@ function Refresh-History {
  $refresh.Enabled=$false;$execute.Enabled=$false;$status.Text='正在刷新任务记录…'
  try {
   $python=Join-Path $PSScriptRoot '.venv\Scripts\python.exe'
-  if(-not (Test-Path -LiteralPath $python)){$python=(Get-Command python -ErrorAction Stop).Source}
+  if((Test-Path -LiteralPath (Join-Path $PSScriptRoot 'runtime\python\python.exe')) -or -not (Test-Path -LiteralPath $python)){$python=$WeChatPython}
   $start=New-Object Diagnostics.ProcessStartInfo
   $start.FileName=$python;$start.Arguments='"'+(Join-Path $PSScriptRoot 'task_history.py')+'" --view --root "'+$Root.TrimEnd('\')+'"'
   if($FocusId){$start.Arguments+=' --task '+$FocusId}

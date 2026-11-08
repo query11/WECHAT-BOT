@@ -3,6 +3,7 @@ $ErrorActionPreference='Stop'
 Add-Type -AssemblyName System.Windows.Forms
 Add-Type -AssemblyName System.Drawing
 Add-Type -Path (Join-Path $PSScriptRoot 'tray_theme.cs') -ReferencedAssemblies System.Windows.Forms,System.Drawing
+. (Join-Path $PSScriptRoot 'python_runtime.ps1')
 [TrayDesign]::EnableDpi();[Windows.Forms.Application]::EnableVisualStyles()
 # First-run guide: steps on the left, the current step in a card, back/next at the bottom right.
 # All checks and writes go through onboarding.py; credentials are never shown here.
@@ -44,6 +45,9 @@ $null=Add-Label $p '开始前请准备' 0 44 536 26 10 ([TrayDesign]::MutedColor
 $y=76;foreach($line in @('Windows 10 / 11，以及 Python 3.10 以上','Claude Code 命令行（由它在电脑上执行任务）','一个能扫码登录的微信')){$null=Add-Glyph $p 'check' 0 ($y+6) ([TrayDesign]::Blue);$null=Add-Label $p $line 30 $y 500 32 10.5;$y+=38}
 $null=Add-Label $p '全程约 5 分钟。之后可在托盘菜单“设置 → 使用引导”重新打开。' 0 206 536 28 10
 $safety=Add-Label $p '助手以当前 Windows 账户运行，可以操作你授权目录中的文件和本机应用；任务内容会发送给你选择的模型服务处理。' 0 250 536 52 9 ([TrayDesign]::MutedColor);$safety.TextAlign='TopLeft'
+$accept=New-Object Windows.Forms.CheckBox;$accept.Text='我已阅读并同意使用说明与免责声明';$accept.SetBounds(0,316,360,30);$accept.BackColor=[Drawing.Color]::Transparent;$p.Controls.Add($accept)
+$readTerms=New-Object Windows.Forms.LinkLabel;$readTerms.Text='阅读免责声明';$readTerms.SetBounds(376,316,160,30);$readTerms.TextAlign='MiddleRight'
+$readTerms.LinkColor=[TrayDesign]::Blue;$readTerms.ActiveLinkColor=[TrayDesign]::Blue;$readTerms.BackColor=[Drawing.Color]::Transparent;$p.Controls.Add($readTerms)
 
 # 2 Environment
 $p=$pages[2]
@@ -53,10 +57,12 @@ $y=0;foreach($row in @(@('python','Python'),@('qr','二维码组件'),@('claude'
  $envRows[$row[0]]=Add-Label $p '检查中…' 128 $y 280 36 10;$y+=52
 }
 $installDeps=Add-Button $p '安装组件' 420 52 116;$installDeps.Visible=$false
-$claudeHelp=New-Object Windows.Forms.LinkLabel;$claudeHelp.Text='安装说明';$claudeHelp.SetBounds(420,104,116,36);$claudeHelp.TextAlign='MiddleCenter'
-$claudeHelp.LinkColor=[TrayDesign]::Blue;$claudeHelp.BackColor=[Drawing.Color]::Transparent;$claudeHelp.Visible=$false;$p.Controls.Add($claudeHelp)
+$installClaude=Add-Button $p '一键安装' 420 104 116;$installClaude.Visible=$false
+$loginClaude=Add-Button $p '登录 Claude' 420 104 116;$loginClaude.Visible=$false
+$claudeHelp=New-Object Windows.Forms.LinkLabel;$claudeHelp.Text='Claude Code 安装说明';$claudeHelp.SetBounds(136,223,180,30);$claudeHelp.TextAlign='MiddleLeft'
+$claudeHelp.LinkColor=[TrayDesign]::Blue;$claudeHelp.BackColor=[Drawing.Color]::Transparent;$p.Controls.Add($claudeHelp)
 $recheck=Add-Button $p '重新检查' 0 220 120;$recheck.IconKind='restart'
-$envHint=Add-Label $p '缺少 Claude Code 也能继续，但任务无法执行；装好后点“重新检查”。' 0 268 536 48 9 ([TrayDesign]::MutedColor);$envHint.TextAlign='TopLeft'
+$envHint=Add-Label $p '使用 Claude 时需要登录一次（点“登录 Claude”，按窗口提示完成）；改用 DeepSeek、Kimi 等服务时只需安装，不必登录。缺少 Claude Code 也能继续，但任务无法执行。' 0 268 536 64 9 ([TrayDesign]::MutedColor);$envHint.TextAlign='TopLeft'
 
 # 3 Folders
 $p=$pages[3]
@@ -94,14 +100,21 @@ $makeCode=Add-Button $p '生成绑定码' 0 208 160;$makeCode.Primary=$true
 # 7 Done
 $p=$pages[7]
 $doneState=Add-Label $p '一切就绪' 0 0 536 30 11 ([TrayDesign]::SuccessText) $true
-$y=44;foreach($tip in @('在微信发送“开始对话”唤醒助手，然后直接描述任务','发送“结束对话”让它待机；待机时仍能查看进度','发送 /help 查看全部指令；文件可以直接发给它','托盘图标右键可打开运行中心、后端配置和使用引导')){$null=Add-Glyph $p 'chat' 0 ($y+6) ([TrayDesign]::Blue);$null=Add-Label $p $tip 30 $y 506 32 10;$y+=38}
-$autostart=New-Object Windows.Forms.CheckBox;$autostart.Text='登录 Windows 后自动启动助手（推荐）';$autostart.Checked=$true;$autostart.SetBounds(0,212,536,30);$autostart.BackColor=[Drawing.Color]::Transparent;$p.Controls.Add($autostart)
+$y=40;foreach($tip in @('在微信发送“开始对话”唤醒助手，然后直接描述任务','发送“结束对话”让它待机；发送 /help 或“示例”随时查看用法')){$null=Add-Glyph $p 'chat' 0 ($y+6) ([TrayDesign]::Blue);$null=Add-Label $p $tip 30 $y 506 32 10;$y+=36}
+$null=Add-Label $p '试试发送（点击复制，到微信里粘贴）' 0 120 536 26 10 ([TrayDesign]::MutedColor)
+$starters=@('看看工作目录里有哪些文件','明天九点提醒我交周报','打开浏览器','看看画面')
+for($i=0;$i -lt $starters.Count;$i++){
+ $b=Add-Button $p $starters[$i] $(if($i % 2){276}else{0}) (150+[Math]::Floor($i/2)*44) 260;$b.Tag=$starters[$i];$b.IconKind='chat'
+ $b.Add_Click({try{[Windows.Forms.Clipboard]::SetText([string]$this.Tag);Say ('已复制“'+$this.Tag+'”。先在微信发送“开始对话”，再粘贴发送。') 'info'}catch{Say '复制失败，请手动输入。' 'error'}})
+}
+$autostart=New-Object Windows.Forms.CheckBox;$autostart.Text='登录 Windows 后自动启动助手（推荐）';$autostart.Checked=$true;$autostart.SetBounds(0,250,536,30);$autostart.BackColor=[Drawing.Color]::Transparent;$p.Controls.Add($autostart)
+$null=Add-Label $p '托盘图标右键可打开运行中心、后端配置、检查更新和使用引导。' 0 290 536 26 9 ([TrayDesign]::MutedColor)
 
 [TrayDesign]::StyleFields($window);foreach($box in @($workdir,$inbox)){$field=[TrayDesign]::Frame($box);$field.Height=36}
-$script:step=1;$script:state=$null;$script:job=$null;$script:login=$null;$script:qrStamp=0;$script:bridgeStarted=$false;$script:lastPoll=0
+$script:step=1;$script:state=$null;$script:job=$null;$script:claudeJob=$null;$script:login=$null;$script:qrStamp=0;$script:bridgeStarted=$false;$script:lastPoll=0
 
 function Invoke-Setup($payload){
- $info=New-Object Diagnostics.ProcessStartInfo;$info.FileName='python'
+ $info=New-Object Diagnostics.ProcessStartInfo;$info.FileName=$WeChatPython
  $info.Arguments='"'+(Join-Path $PSScriptRoot 'onboarding.py')+'" --root "'+$Root.TrimEnd('\')+'"'
  $info.UseShellExecute=$false;$info.CreateNoWindow=$true;$info.RedirectStandardInput=$true;$info.RedirectStandardOutput=$true
  $info.StandardOutputEncoding=New-Object Text.UTF8Encoding($false);$info.EnvironmentVariables['PYTHONIOENCODING']='utf-8'
@@ -119,7 +132,7 @@ function Invoke-Setup($payload){
 function Start-Hidden($file,$arguments,$shell=$false){
  $info=New-Object Diagnostics.ProcessStartInfo
  if($shell){$info.FileName=Join-Path $env:SystemRoot 'System32\WindowsPowerShell\v1.0\powershell.exe';$info.Arguments='-NoProfile -ExecutionPolicy Bypass -File "'+(Join-Path $PSScriptRoot $file)+'" '+$arguments}
- else{$info.FileName='python';$info.Arguments='"'+(Join-Path $PSScriptRoot $file)+'" '+$arguments}
+ else{$info.FileName=$WeChatPython;$info.Arguments='"'+(Join-Path $PSScriptRoot $file)+'" '+$arguments}
  $info.UseShellExecute=$false;$info.CreateNoWindow=$true;$info.WorkingDirectory=$Root
  return [Diagnostics.Process]::Start($info)
 }
@@ -129,7 +142,7 @@ function Refresh-Environment {
  $s=$script:state;if(-not $s){return}
  Mark $envRows['python'] $s.python.ok ('Python '+$s.python.version) ('Python '+$s.python.version+'，需要 3.10 以上')
  Mark $envRows['qr'] $s.qr_library '已安装' '未安装（用于显示登录二维码）';$installDeps.Visible=-not $s.qr_library
- Mark $envRows['claude'] ([bool]$s.claude) $s.claude '未找到 claude 命令';$claudeHelp.Visible=-not $s.claude
+ Mark $envRows['claude'] ([bool]$s.claude) $s.claude '未找到 Claude Code';$installClaude.Visible=-not $s.claude;$loginClaude.Visible=[bool]$s.claude
  Mark $envRows['config'] $s.config.exists '已创建' '下一步会自动创建';if(-not $s.config.exists){$envRows['config'].ForeColor=[TrayDesign]::MutedColor}
 }
 function Refresh-Step {
@@ -152,7 +165,7 @@ function Refresh-Step {
 }
 function Can-Advance {
  $s=$script:state
- switch($script:step){2{return [bool]($s -and $s.python.ok)};5{return [bool]($s -and $s.config.logged_in)};6{return [bool]($s -and $s.config.allowed -gt 0)};default{return $true}}
+ switch($script:step){1{return [bool]$accept.Checked};2{return [bool]($s -and $s.python.ok)};5{return [bool]($s -and $s.config.logged_in)};6{return [bool]($s -and $s.config.allowed -gt 0)};default{return $true}}
 }
 function Update-Navigation {
  $back.Enabled=$script:step -gt 1 -and -not $script:job;$next.Enabled=(Can-Advance) -and -not $script:job
@@ -182,7 +195,7 @@ function Advance {
    Say $answer.message 'ok'
   }
   7{
-   $answer=Invoke-Setup @{operation='complete'}
+   $answer=Invoke-Setup @{operation='complete';accepted=[bool]$accept.Checked}
    if(-not $answer.ok){Say $answer.message 'error';return}
    if($autostart.Checked){try{$x=Start-Hidden 'install_autostart.ps1' '' $true;[void]$x.WaitForExit(15000);$x.Dispose()}catch{}}
    try{$x=Start-Hidden 'launch_tray.ps1' '-Show' $true;$x.Dispose()}catch{Say '无法打开运行中心，请双击“微信助手.bat”。' 'error';return}
@@ -193,6 +206,7 @@ function Advance {
 }
 function Stop-Login {if($script:login -and -not $script:login.HasExited){try{$script:login.Kill()}catch{}};if($script:login){$script:login.Dispose();$script:login=$null}}
 function Poll {
+ if($script:claudeJob -and $script:claudeJob.HasExited){$script:claudeJob.Dispose();$script:claudeJob=$null;$answer=Invoke-Setup @{operation='link_claude'};Refresh-Step;Say $answer.message $(if($script:state.claude){'ok'}else{'error'})}
  if($script:job -and $script:job.HasExited){
   $ok=$script:job.ExitCode -eq 0;$script:job.Dispose();$script:job=$null
   $null=Invoke-Setup @{operation='status'};Refresh-Step
@@ -220,12 +234,23 @@ function Poll {
 }
 $installDeps.Add_Click({
  try{
-  $info=New-Object Diagnostics.ProcessStartInfo;$info.FileName='python';$info.Arguments='-m pip install -r "'+(Join-Path $Root 'requirements.txt')+'"'
+  $info=New-Object Diagnostics.ProcessStartInfo;$info.FileName=$WeChatPython;$info.Arguments='-m pip install -r "'+(Join-Path $Root 'requirements.txt')+'"'
   $info.UseShellExecute=$false;$info.CreateNoWindow=$true;$script:job=[Diagnostics.Process]::Start($info);Say '正在安装组件，可能需要一两分钟…' 'info'
  }catch{Say '无法运行 pip，请检查 Python 安装。' 'error'}
  Update-Navigation
 })
-$claudeHelp.Add_LinkClicked({Start-Process 'https://code.claude.com/docs'})
+$claudeHelp.Add_LinkClicked({Start-Process 'https://code.claude.com/docs/en/setup'})
+# Official native installer (no administrator rights or Node.js); shown in its own window.
+$installClaude.Add_Click({
+ $command='irm https://claude.ai/install.ps1 | iex'
+ if([Windows.Forms.MessageBox]::Show($window,('将运行 Claude Code 官方安装命令：'+"`r`n`r`n"+$command+"`r`n`r`n"+'会打开一个窗口显示进度，不需要管理员权限。是否继续？'),'安装 Claude Code','YesNo','Question') -ne 'Yes'){return}
+ try{
+  $info=New-Object Diagnostics.ProcessStartInfo;$info.FileName=Join-Path $env:SystemRoot 'System32\WindowsPowerShell\v1.0\powershell.exe'
+  $info.Arguments='-NoProfile -ExecutionPolicy Bypass -Command "[Net.ServicePointManager]::SecurityProtocol=[Net.SecurityProtocolType]::Tls12; '+$command+'; Write-Host; Read-Host ''Done. Press Enter to close''"'
+  $info.UseShellExecute=$true;$script:claudeJob=[Diagnostics.Process]::Start($info);Say '正在安装 Claude Code，请在打开的窗口中查看进度…' 'info'
+ }catch{Say '无法启动安装，请按安装说明手动安装。' 'error'}
+})
+$loginClaude.Add_Click({$path=[string]$script:state.claude;if($path){try{Start-Process -FilePath $path -WorkingDirectory $env:USERPROFILE;Say '已打开 Claude 登录窗口，按提示完成后关闭即可。' 'info'}catch{Say '无法打开 Claude，请在终端运行 claude 登录。' 'error'}}})
 $recheck.Add_Click({$null=Invoke-Setup @{operation='status'};Refresh-Step;Say '已重新检查'})
 foreach($pair in @(@($browseWork,$workdir),@($browseInbox,$inbox))){
  $pair[0].Tag=$pair[1]
@@ -242,6 +267,8 @@ $makeCode.Add_Click({
  if(-not $answer.ok){Say $answer.message 'error';return}
  $codeLabel.Text='绑定 '+$answer.code;$codeHint.Text='10 分钟内有效，只能使用一次。';Say '等待你在微信里发送绑定码…' 'info'
 })
+$accept.Add_CheckedChanged({Update-Navigation})
+$readTerms.Add_LinkClicked({$path=Join-Path $PSScriptRoot 'DISCLAIMER.md';if(Test-Path -LiteralPath $path){Start-Process notepad.exe ('"'+$path+'"')}})
 $back.Add_Click({if($script:step -gt 1){Show-Step ($script:step-1)}})
 $next.Add_Click({Advance})
 $window.Add_FormClosing({Stop-Login;if($script:state -and -not $script:state.completed){$null=Invoke-Setup @{operation='pair_cancel'}}})

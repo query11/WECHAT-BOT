@@ -3,6 +3,7 @@ $ErrorActionPreference='Stop'
 Add-Type -AssemblyName System.Windows.Forms
 Add-Type -AssemblyName System.Drawing
 Add-Type -Path (Join-Path $PSScriptRoot 'tray_theme.cs') -ReferencedAssemblies System.Windows.Forms,System.Drawing
+. (Join-Path $PSScriptRoot 'python_runtime.ps1')
 [TrayDesign]::EnableDpi();[Windows.Forms.Application]::EnableVisualStyles()
 # Shows the newest GitHub release and hands a prepared install to the tray (update-request.json).
 # The tray then starts updater.py apply, stops the assistant and reopens it when done.
@@ -70,7 +71,7 @@ function Set-Actions {
 function Start-Updater($action,$extra=''){
  if($script:job){return}
  try{
-  $info=New-Object Diagnostics.ProcessStartInfo;$info.FileName='python'
+  $info=New-Object Diagnostics.ProcessStartInfo;$info.FileName=$WeChatPython
   $info.Arguments='"'+(Join-Path $PSScriptRoot 'updater.py')+'" '+$action+' --root "'+$Root.TrimEnd('\')+'" '+$extra
   $info.UseShellExecute=$false;$info.CreateNoWindow=$true;$info.RedirectStandardOutput=$true;$info.RedirectStandardError=$true
   $info.StandardOutputEncoding=New-Object Text.UTF8Encoding($false);$info.EnvironmentVariables['PYTHONIOENCODING']='utf-8'

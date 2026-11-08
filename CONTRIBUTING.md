@@ -50,4 +50,4 @@ GitHub Actions 在 Windows 上运行离线回归，并保存验证报告。进�
 - 不提交真实配置、API Key、固定记忆、聊天、截图、生成文件、日志或 `.runtime/`。
 - 提交说明写清问题、修改后的行为和验证范围。失败与未测项目应与通过结果分开记录。
 
-根目录 `.editorconfig` 与 `.gitattributes` 约定基础格式和换行。当前仓库未指定开源许可证，贡献或再分发前请先确认授权。
+根目录 `.editorconfig` 与 `.gitattributes` 约定基础格式和换行。本项目以 [MIT 许可证](LICENSE) 发布；提交贡献即表示同意以相同许可证授权。

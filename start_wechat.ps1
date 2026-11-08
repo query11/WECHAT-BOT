@@ -19,8 +19,9 @@ try { [Console]::OutputEncoding = [System.Text.Encoding]::UTF8 } catch { }
 function Fail($msg) { Write-Host "[FAIL] $msg" -ForegroundColor Red; exit 1 }
 function Info($msg) { Write-Host "[INFO] $msg" -ForegroundColor Cyan }
 
-$py = Get-Command python -ErrorAction SilentlyContinue
-if (-not $py) { Fail "python not found in PATH. Install Python 3.10+ first." }
+. (Join-Path $here "python_runtime.ps1")
+$py = Resolve-WeChatPython $here
+if (-not $py) { Fail "python not found (bundled runtime or PATH). Install Python 3.10+ first." }
 
 if (-not (Test-Path (Join-Path $here "config.json"))) {
     Fail "config.json missing. Copy config.example.json to config.json and fill in workdir."
@@ -30,12 +31,12 @@ if (-not (Test-Path (Join-Path $here "config.json"))) {
 
 if ($Login) {
     Info "starting QR login (a PNG will be written next to this script)"
-    & python (Join-Path $here "wechat_bridge.py") "login"
+    & $py (Join-Path $here "wechat_bridge.py") "login"
     exit $LASTEXITCODE
 }
 
 if ($Check) {
-    & python (Join-Path $here "wechat_bridge.py") "check"
+    & $py (Join-Path $here "wechat_bridge.py") "check"
     exit $LASTEXITCODE
 }
 
@@ -46,7 +47,7 @@ if (-not $claude) {
 }
 
 Info "config check"
-& python (Join-Path $here "wechat_bridge.py") "check"
+& $py (Join-Path $here "wechat_bridge.py") "check"
 
 Info "long-polling WeChat. No tunnel or public IP needed. Ctrl+C to stop."
-& python (Join-Path $here "wechat_bridge.py") "run"
+& $py (Join-Path $here "wechat_bridge.py") "run"

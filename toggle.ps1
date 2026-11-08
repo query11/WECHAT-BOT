@@ -19,6 +19,7 @@ Set-Location $here
 try { [Console]::OutputEncoding = [System.Text.Encoding]::UTF8 } catch { }
 
 $pidFile = Join-Path $here "bridge.pid"
+. (Join-Path $here "python_runtime.ps1")
 $logFile = Join-Path $here "bridge.log"
 
 function Info($m) { Write-Host "[INFO] $m" -ForegroundColor Cyan }
@@ -67,8 +68,8 @@ function Start-Bridge {
         Fail "config.json missing. Copy config.example.json to config.json first."
         return
     }
-    if (-not (Get-Command python -ErrorAction SilentlyContinue)) {
-        Fail "python not found in PATH. Install Python 3.10+ first."
+    if (-not (Resolve-WeChatPython $here)) {
+        Fail "python not found (bundled runtime or PATH). Install Python 3.10+ first."
         return
     }
     # -Encoding UTF8 is REQUIRED: config.json is written by Python as UTF-8 (see
@@ -94,7 +95,7 @@ function Start-Bridge {
     # Use a relative script name under the project working directory so spaces in
     # the project path do not split Python's script argument.
     . (Join-Path $here "process_launcher.ps1")
-    $pythonPath = (Get-Command python -CommandType Application -ErrorAction Stop | Select-Object -First 1).Source
+    $pythonPath = Resolve-WeChatPython $here
     $p = Start-WeChatIndependentProcess $pythonPath "wechat_bridge.py run" $here
     Set-Content -Path $pidFile -Value $p.Id -Encoding ASCII
 

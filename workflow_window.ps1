@@ -6,6 +6,7 @@ Add-Type -AssemblyName System.Windows.Forms
 Add-Type -AssemblyName System.Drawing
 . (Join-Path $PSScriptRoot 'ui_preferences.ps1')
 Add-Type -Path (Join-Path $PSScriptRoot 'tray_theme.cs') -ReferencedAssemblies System.Windows.Forms,System.Drawing
+. (Join-Path $PSScriptRoot 'python_runtime.ps1')
 . (Join-Path $PSScriptRoot 'desktop_files.ps1')
 [TrayDesign]::EnableDpi();[Windows.Forms.Application]::EnableVisualStyles()
 $window=New-Object Windows.Forms.Form;$window.Text='微信助手 · 快捷任务';$window.ClientSize=New-Object Drawing.Size(960,760)
@@ -138,7 +139,7 @@ function Request($action){
  Add-RevisionPayload $payload $action
  Add-LocalFilePayload $payload $action
  Add-SchedulePayload $payload $action
- $info=New-Object Diagnostics.ProcessStartInfo;$info.FileName='python';$info.Arguments='"'+(Join-Path $PSScriptRoot 'workflow_desktop.py')+'" --root "'+$Root.TrimEnd('\')+'"'
+ $info=New-Object Diagnostics.ProcessStartInfo;$info.FileName=$WeChatPython;$info.Arguments='"'+(Join-Path $PSScriptRoot 'workflow_desktop.py')+'" --root "'+$Root.TrimEnd('\')+'"'
  $info.UseShellExecute=$false;$info.CreateNoWindow=$true;$info.RedirectStandardInput=$true;$info.RedirectStandardOutput=$true;$info.RedirectStandardError=$true
  $info.StandardOutputEncoding=New-Object Text.UTF8Encoding($false);$info.StandardErrorEncoding=New-Object Text.UTF8Encoding($false);$info.EnvironmentVariables['PYTHONIOENCODING']='utf-8'
  $p=New-Object Diagnostics.Process;$p.StartInfo=$info

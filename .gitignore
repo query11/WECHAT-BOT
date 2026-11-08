@@ -55,6 +55,8 @@ BOT_MEMORY.md.*
 *.py[cod]
 .venv/
 venv/
+# Bundled interpreter added by the installer
+runtime/
 .pytest_cache/
 .ruff_cache/
 .idea/

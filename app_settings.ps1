@@ -4,6 +4,7 @@ if($VerifyPersistence -and [IO.Path]::GetFullPath($ConfigRoot) -eq [IO.Path]::Ge
 Add-Type -AssemblyName System.Windows.Forms
 Add-Type -AssemblyName System.Drawing
 Add-Type -Path (Join-Path $PSScriptRoot 'tray_theme.cs') -ReferencedAssemblies System.Windows.Forms,System.Drawing
+. (Join-Path $PSScriptRoot 'python_runtime.ps1')
 [TrayDesign]::EnableDpi();[Windows.Forms.Application]::EnableVisualStyles()
 $window=New-Object Windows.Forms.Form
 $window.AutoScaleDimensions=New-Object Drawing.SizeF(96,96);$window.AutoScaleMode='Dpi'
@@ -88,7 +89,7 @@ function Request($action){
   }
  }
  $info=New-Object Diagnostics.ProcessStartInfo
- $info.FileName='python';$info.Arguments='"'+(Join-Path $PSScriptRoot 'app_preferences.py')+'" --root "'+$ConfigRoot+'"'
+ $info.FileName=$WeChatPython;$info.Arguments='"'+(Join-Path $PSScriptRoot 'app_preferences.py')+'" --root "'+$ConfigRoot+'"'
  $info.UseShellExecute=$false;$info.CreateNoWindow=$true;$info.RedirectStandardInput=$true;$info.RedirectStandardOutput=$true;$info.RedirectStandardError=$true
  $info.StandardOutputEncoding=New-Object Text.UTF8Encoding($false);$info.StandardErrorEncoding=New-Object Text.UTF8Encoding($false);$info.EnvironmentVariables['PYTHONIOENCODING']='utf-8'
  $p=New-Object Diagnostics.Process;$p.StartInfo=$info

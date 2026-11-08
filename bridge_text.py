@@ -10,6 +10,33 @@ wechat_bridge.py 仍然把这里的名字都 re-export 出去，所以 wechat_br
 
 import os
 
+# Starter tasks for new users: each line can be sent as-is after “开始对话”.
+EXAMPLES = """试试这些。先发送“开始对话”，再直接发下面任意一句：
+
+📄 文件
+看看工作目录里有哪些文件
+把我刚发的这份 PDF 整理成 5 条要点
+发给我桌面上那个汇报的 ppt
+
+⏰ 提醒
+明天九点提醒我交周报
+每天早上九点提醒我喝水
+
+🖥 电脑
+打开浏览器
+音量调到30%
+看看画面
+
+用完发送“结束对话”回到待机；发送 /help 查看全部指令。"""
+EXAMPLE_WORDS = ("/examples", "示例", "例子", "新手示例", "怎么用", "能做什么", "你能做什么")
+HELP_WORDS = ("/help", "help", "帮助", "?", "？")
+VERSION_WORDS = ("/version", "版本", "版本号")
+
+
+def is_examples_request(body):
+    return (body or "").strip().lower().rstrip("？?") in EXAMPLE_WORDS
+
+
 HELP = """可用指令：
 
 后台待机（启用 standby_on_start 时）
@@ -28,6 +55,7 @@ HELP = """可用指令：
 /new                  清掉上下文，重新开一段
 /where   /id          看工作目录 / 看你自己的用户 ID
 /version              当前版本，以及有没有新版本
+示例                  新手示例：几句可以直接发的任务
 /parse <一句话>       这句话会走哪条通道（不动手、不花额度；排查「为什么它没反应」用）
 
 🎵 电脑

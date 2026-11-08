@@ -1,6 +1,9 @@
 """微信唤醒闸门：身份验证之后、所有业务分发之前运行。"""
 import time
-from bridge_text import parse_chat_switch
+from bridge_config import HERE
+from bridge_text import (EXAMPLES, HELP, HELP_WORDS, VERSION_WORDS,
+                         is_examples_request, parse_chat_switch)
+import updater
 from bridge_admin import parse_admin
 
 
@@ -42,6 +45,18 @@ class StandbyMixin:
             self.reply(msg, "✅ 后台在线，助手%s。发「开始对话」唤醒，发「结束对话」待机。\n%s"
                        % (mode, self._try_admin(uid, "/status")))
             return True
+        if uid not in self._awake:
+            # Read-only help stays available in standby: a newly bound user starts here.
+            low = body.lower()
+            if low in HELP_WORDS:
+                self.reply(msg, HELP)
+                return True
+            if is_examples_request(body):
+                self.reply(msg, EXAMPLES)
+                return True
+            if low in VERSION_WORDS:
+                self.reply(msg, updater.status_text(HERE))
+                return True
         if uid in self._draining:
             admin = parse_admin(body)
             if body.lower() in ("/stop", "/stopall", "/queue", "/queue clear") or (admin and admin[0] in ('queue_manage', 'queue_help')):

@@ -136,11 +136,12 @@ class CheckTests(Base):
 
 class ArchiveTests(Base):
     def test_extract_strips_top_folder_and_skips_local_data(self):
-        data = make_zip(dict(PROGRAM, **{'config.json': '{"stolen":1}', '.runtime/x.json': '{}', 'keys/a.key': 'k'}))
+        data = make_zip(dict(PROGRAM, **{'config.json': '{"stolen":1}', '.runtime/x.json': '{}', 'keys/a.key': 'k',
+                                         'runtime/python/python.exe': 'interpreter'}))
         path = self.root / 'a.zip'; path.write_bytes(data)
         out = updater.extract(path, self.root / 'out')
         self.assertEqual((out / 'wechat_bridge.py').read_text(), 'new bridge')
-        for name in ('config.json', '.runtime/x.json', 'keys/a.key'):
+        for name in ('config.json', '.runtime/x.json', 'keys/a.key', 'runtime/python/python.exe'):
             self.assertFalse((out / name).exists(), name)
 
     def test_unsafe_members_are_rejected(self):

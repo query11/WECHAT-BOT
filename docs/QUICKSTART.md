@@ -1,13 +1,13 @@
 # 快速开始
 
-> **最简单的方式**：准备好 Python 与 Claude Code 后，双击 `微信助手.bat`。首次运行会打开“使用引导”，依次检查环境、选择工作目录、选择模型服务、扫码登录微信，并用一次性绑定码把你的微信加入白名单（在微信里发送“绑定 六位数字”即可，无需手动复制用户 ID）。完成后自动打开运行中心。之后可在托盘菜单“设置 → 使用引导”重新打开。下面是手动配置的完整步骤。
+> **最简单的方式**：准备好 Python 后，双击 `微信助手.bat`。首次运行会打开“使用引导”，依次阅读免责声明、检查环境（没有 Claude Code 时可一键安装）、选择工作目录、选择模型服务、扫码登录微信，并用一次性绑定码把你的微信加入白名单（在微信里发送“绑定 六位数字”即可，无需手动复制用户 ID）。完成后自动打开运行中心。之后可在托盘菜单“设置 → 使用引导”重新打开。下面是手动配置的完整步骤。
 
 ## 1. 准备环境
 
 - Windows 10/11，使用能打开本机桌面应用的 Windows 用户。
 - Python 3.10+，已加入 `PATH`。
 - Windows PowerShell 5.1（系统自带）及 Git。
-- 已安装、可正常使用的 Claude Code CLI；选择 DeepSeek 时也需要该 CLI。
+- 已安装、可正常使用的 Claude Code CLI；选择 DeepSeek 时也需要该 CLI。可以在使用引导中一键安装（官方安装脚本，不需要 Node.js），也可以按[官方安装说明](https://code.claude.com/docs/en/setup)手动安装。
 - 可扫码登录 iLink 的微信账号，以及可用的网络和模型服务账号。
 
 先在普通终端检查 `python --version` 和 `claude --version`。Claude Code 的账号、API 或模型服务配置需在本机完成；本仓库不提供登录凭据或 API Key。
@@ -116,12 +116,22 @@ python tools/set_backend.py claude
 
 异常重启后不要盲目重发。未开始且符合条件的文字任务可手动恢复；已开始或效果不确定的任务，先检查文件和外部应用。
 
+## 卸载
+
+先退出程序，再在项目目录执行：
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File .\uninstall.ps1
+```
+
+这会关闭托盘、停止后台并移除开机自启动，保留配置和任务记录，之后可以直接删除程序文件夹。加上 `-RemoveData` 会同时删除 `config.json`、`BOT_MEMORY.md`、`.runtime/` 等个人数据。两种方式都不会删除你选择的工作目录和收件目录。
+
 ## 常见问题
 
 | 现象 | 先检查什么 |
 | --- | --- |
 | 微信不执行任务 | 是否已加入白名单、是否已“开始对话”、后台是否连接 |
-| 找不到 `claude` | 在同一 Windows 用户的终端运行 `claude --version`，核对 `PATH` 或 `claude_bin` |
+| 找不到 `claude` | 在同一 Windows 用户的终端运行 `claude --version`，核对 `PATH` 或 `claude_bin`；刚安装完时，引导会自动找到 `%USERPROFILE%\.local\bin\claude.exe` |
 | 模型不能读取附件 | `inbox.dir` 是否位于允许目录、文件是否实际下载到本机 |
 | 提示“路径解析后发生重定向” | 使用完整目录名称，避免 `RUNNER~1` 一类 Windows 短名称；文件路径中也不要使用符号链接或目录联接 |
 | 持续黄色或 TLS 报错 | 运行中心故障提示、网络与代理设置、本机 `bridge.log` |

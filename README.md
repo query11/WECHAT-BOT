@@ -20,7 +20,7 @@
 
 ## 快速开始
 
-需要 Windows 10/11、Python 3.10+、Windows PowerShell 5.1，以及已配置可用的 Claude Code CLI。使用 DeepSeek 后端仍需要 Claude Code 执行本机工具。
+需要 Windows 10/11、Python 3.10+、Windows PowerShell 5.1，以及已配置可用的 Claude Code CLI（使用引导可一键安装，不需要 Node.js）。使用 DeepSeek 后端仍需要 Claude Code 执行本机工具。
 
 ```powershell
 git clone https://github.com/query11/WECHAT-BOT.git
@@ -42,7 +42,7 @@ python wechat_bridge.py run
 
 第一次运行时白名单为空，微信消息只会获得用户 ID 提示。将自己的 ID 加入 `allowed_user_ids`，在终端按 `Ctrl+C` 退出，再双击 **`微信助手.bat`** 启动桌面运行中心。从微信发送“开始对话”，再发送任务。
 
-完整配置、模型切换和登录自启动见 **[快速开始](docs/QUICKSTART.md)**。新版本在 GitHub 发布后，运行中心会提示并支持一键更新，见[发布与更新](docs/reference/发布与更新.md)。
+完整配置、模型切换、登录自启动和卸载见 **[快速开始](docs/QUICKSTART.md)**。新版本在 GitHub 发布后，运行中心会提示并支持一键更新，见[发布与更新](docs/reference/发布与更新.md)。
 
 ## 常用指令
 
@@ -66,11 +66,15 @@ python wechat_bridge.py run
 ```text
 WECHAT-BOT/
 ├── README.md                  # 项目入口
+├── LICENSE / DISCLAIMER.md     # MIT 许可证与使用说明、免责声明
 ├── config.example.json        # 通用配置示例，无登录凭据
 ├── BOT_MEMORY.example.md      # 固定记忆示例
 ├── requirements.txt           # 登录二维码依赖
 ├── 微信助手.bat               # 桌面入口
 ├── start_wechat.ps1            # 登录、检查、前台启动
+├── setup_wizard.ps1           # 首次使用引导
+├── python_runtime.ps1         # 选择内置或系统 Python
+├── uninstall.ps1              # 停止、移除自启动，可选删除个人数据
 ├── wechat_bridge.py            # 消息路由、调度和命令行入口
 ├── bridge_*.py                # 按功能拆分的消息处理层
 ├── claude_runner.py           # Claude Code 执行器
@@ -107,4 +111,6 @@ python tools/verify.py --suite integration
 - `config.json`、`BOT_MEMORY.md`、`.runtime/`、API 密钥、会话文件和日志不上传 Git。仓库只提供配置与记忆示例。
 - iLink、模型服务和 Windows 桌面能力会影响可用性；文件大小、发送数量及结果核验也有明确范围，详见[功能详解](docs/reference/功能详解.md)。
 
-本仓库暂未指定开源许可证；如需分发或商用，请先与维护者确认授权。
+## 许可证与免责声明
+
+本项目以 [MIT 许可证](LICENSE) 发布，可自由使用、修改和再分发，需保留版权声明。微信助手是个人开发的非官方工具，与腾讯、微信及各模型服务商无关；使用前请阅读[使用说明与免责声明](DISCLAIMER.md)，了解账号、本机权限、模型费用与数据方面的风险。

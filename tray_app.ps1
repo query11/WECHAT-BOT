@@ -15,6 +15,7 @@ Add-Type -AssemblyName System.Windows.Forms
 Add-Type -AssemblyName System.Drawing
 . (Join-Path $PSScriptRoot 'ui_preferences.ps1')
 Add-Type -Path (Join-Path $PSScriptRoot 'tray_theme.cs') -ReferencedAssemblies System.Windows.Forms,System.Drawing
+. (Join-Path $PSScriptRoot 'python_runtime.ps1')
 . (Join-Path $PSScriptRoot 'desktop_files.ps1')
 [TrayDesign]::EnableDpi()
 [System.Windows.Forms.Application]::EnableVisualStyles()
@@ -628,7 +629,7 @@ function Start-UpdateCheck {
     if($script:updateJob){$script:updateJob.Dispose();$script:updateJob=$null}
     $script:updateCheckedAt=[DateTimeOffset]::UtcNow.ToUnixTimeSeconds()
     try{
-        $start=New-Object Diagnostics.ProcessStartInfo;$start.FileName='python'
+        $start=New-Object Diagnostics.ProcessStartInfo;$start.FileName=$WeChatPython
         $start.Arguments='"'+(Join-Path $root 'updater.py')+'" check --root "'+$root.TrimEnd('\')+'"'
         $start.UseShellExecute=$false;$start.CreateNoWindow=$true;$start.WorkingDirectory=$root
         $script:updateJob=[Diagnostics.Process]::Start($start)
@@ -644,7 +645,7 @@ function Start-UpdateInstall($requestPath) {
     $arguments='"'+(Join-Path $root 'updater.py')+'" apply --root "'+$root.TrimEnd('\')+'" --staging "'+[string]$request.staging+'" --wait-pid '+$PID
     if($alive){$arguments+=' --wait-pid '+$s.pid}
     try{
-        $start=New-Object Diagnostics.ProcessStartInfo;$start.FileName='python';$start.Arguments=$arguments
+        $start=New-Object Diagnostics.ProcessStartInfo;$start.FileName=$WeChatPython;$start.Arguments=$arguments
         $start.UseShellExecute=$false;$start.CreateNoWindow=$true;$start.WorkingDirectory=$env:TEMP
         $installer=[Diagnostics.Process]::Start($start);$installer.Dispose()
     }catch{Set-Feedback '无法启动安装程序，请稍后重试。' 'error';return}
@@ -693,6 +694,8 @@ function Refresh-State {
     $now=[DateTimeOffset]::UtcNow.ToUnixTimeSeconds()
     $showFile=Join-Path $runtime 'show-window'
     if(Test-Path -LiteralPath $showFile){Remove-Item -LiteralPath $showFile;$form.Show();$form.Activate()}
+    $exitFile=Join-Path $runtime 'tray-exit'
+    if(Test-Path -LiteralPath $exitFile){Remove-Item -LiteralPath $exitFile -ErrorAction SilentlyContinue;$script:closing=$true;$form.Close();return}
     $file=Join-Path $runtime 'status.json'
     if(Test-Path -LiteralPath $file){$script:snapshot=Get-Content -LiteralPath $file -Raw -Encoding UTF8 | ConvertFrom-Json}else{$script:snapshot=$null}
     $s=$script:snapshot

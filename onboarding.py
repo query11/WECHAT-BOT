@@ -48,10 +48,44 @@ def _write_config(root, raw):
             os.unlink(temp)
 
 
-def _claude_path(raw):
+def _claude_candidates():
+    """Where the official installers put Claude Code when PATH has not caught up yet."""
+    home = os.environ.get('USERPROFILE') or os.path.expanduser('~')
+    appdata = os.environ.get('APPDATA') or ''
+    paths = [os.path.join(home, '.local', 'bin', 'claude.exe')]   # native installer (install.ps1)
+    if appdata:
+        paths.append(os.path.join(appdata, 'npm', 'claude.cmd'))  # npm global install
+    return paths
+
+
+def _claude(raw):
+    """(path, on_path): the configured command, else a known install location."""
     command = (raw or {}).get('claude_bin', 'claude')
     first = command[0] if isinstance(command, list) and command else command
-    return shutil.which(str(first or 'claude')) or ''
+    found = shutil.which(str(first or 'claude'))
+    if found:
+        return found, True
+    for candidate in _claude_candidates():
+        if os.path.isfile(candidate):
+            return candidate, False
+    return '', False
+
+
+def _claude_path(raw):
+    return _claude(raw)[0]
+
+
+def link_claude(root=ROOT):
+    """Points claude_bin at a freshly installed claude.exe that PATH does not show yet."""
+    raw = _read_config(root)
+    if raw is None:
+        return dict(status(root), message='配置文件将在“选择工作目录”一步创建')
+    path, on_path = _claude(raw)
+    if path and not on_path and raw.get('claude_bin', 'claude') in ('claude', '', None):
+        raw['claude_bin'] = path
+        _write_config(root, raw)
+        return dict(status(root), message='已找到 Claude Code：' + path)
+    return dict(status(root), message='已找到 Claude Code' if path else '没有找到 Claude Code')
 
 
 def _bridge_running(root, now):
@@ -117,6 +151,9 @@ def init(root=ROOT, workdir='', inbox=''):
         except (OSError, ValueError):
             raise SetupError('缺少 config.example.json，程序文件不完整') from None
     raw['workdir'] = str(work)
+    claude_path, on_path = _claude(raw)
+    if claude_path and not on_path and raw.get('claude_bin', 'claude') in ('claude', '', None):
+        raw['claude_bin'] = claude_path
     inbox_cfg = raw.get('inbox') if isinstance(raw.get('inbox'), dict) else {}
     inbox_cfg['dir'] = str(box)
     raw['inbox'] = inbox_cfg
@@ -147,10 +184,13 @@ def pair(root=ROOT):
     return dict(status(root), code=code['code'], message='请在微信里发送：绑定 ' + code['code'])
 
 
-def complete(root=ROOT):
+def complete(root=ROOT, accepted=False):
+    if accepted is not True:
+        raise SetupError('请先阅读并同意使用说明与免责声明')
     marker = Path(root) / '.runtime' / 'onboarding.json'
     marker.parent.mkdir(parents=True, exist_ok=True)
-    marker.write_text(json.dumps({'completed_at': time.time(), 'version': read_version(root)}), encoding='utf-8')
+    marker.write_text(json.dumps({'completed_at': time.time(), 'version': read_version(root),
+                                  'disclaimer_accepted': True}), encoding='utf-8')
     return dict(status(root), message='使用引导已完成')
 
 
@@ -163,6 +203,8 @@ def execute(root, request):
             return status(root)
         if op == 'init':
             return init(root, request.get('workdir'), request.get('inbox'))
+        if op == 'link_claude':
+            return link_claude(root)
         if op == 'install_deps':
             return install_deps(root)
         if op == 'pair':
@@ -173,7 +215,7 @@ def execute(root, request):
             pairing.cancel(root)
             return status(root)
         if op == 'complete':
-            return complete(root)
+            return complete(root, request.get('accepted'))
         raise SetupError('不支持的操作')
     except SetupError as exc:
         return {'ok': False, 'message': str(exc)}

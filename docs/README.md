@@ -12,6 +12,7 @@
 | [托盘运行中心](reference/托盘运行中心说明.md) | 状态、重启、任务进度和桌面入口 |
 | [模型后端](reference/DeepSeek后端说明.md) | Claude、DeepSeek、Kimi 等兼容接口的切换与 API 配置 |
 | [发布与更新](reference/发布与更新.md) | 发布新版本、自动检查与一键更新 |
+| [安装程序规划](reference/安装程序规划.md) | 内置 Python、Claude Code 安装、卸载与安装包方案 |
 | [验证记录](testing/可靠性检查与验收.md) | 各轮测试范围、结果和已知边界 |
 | [整理验收](testing/项目整理验收.md) | 本次迁移后的独立副本验证结果 |
 | [实机验收](testing/实机验收.md) | 微信、附件、提醒和取消的手机检查步骤 |

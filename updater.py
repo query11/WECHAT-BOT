@@ -47,8 +47,9 @@ MAX_ARCHIVE = 200 * 1024 * 1024
 MAX_UNPACKED = 500 * 1024 * 1024
 MAX_MEMBERS = 5000
 REQUIRED = ('VERSION', 'wechat_bridge.py', 'tray_app.ps1', 'launch_tray.ps1', 'updater.py')
-# Local state and secrets: never shipped in an archive, never touched by an update.
-PROTECTED_DIRS = {'.runtime', '.git', 'shots', '_bak', '.venv', 'venv', '__pycache__'}
+# Local state, secrets and the bundled interpreter (runtime/python): never shipped in an
+# archive, never touched by an update.
+PROTECTED_DIRS = {'.runtime', '.git', 'shots', '_bak', '.venv', 'venv', '__pycache__', 'runtime'}
 PROTECTED_NAMES = {'config.json', 'BOT_MEMORY.md', 'sessions.json', 'inbox.json', 'meetings.json',
                    'reminders.json', 'app_targets.json', 'app_preferences.json', 'bridge.pid',
                    'get_updates_buf.txt', 'send_style.txt', '.env'}

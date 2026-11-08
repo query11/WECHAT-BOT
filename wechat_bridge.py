@@ -57,7 +57,7 @@ from bridge_screen import ScreenMixin
 # 下面这些名字原来就定义在本模块里，2026-09-02 挪进 bridge_text.py 之后照旧 re-export：
 # selftest.py 里 wechat_bridge.parse_chat_switch、wechat_bridge._SEND_DENY_HERE
 # 这类写法一个都不用改。
-from bridge_text import (HELP, MARK_SEND_FILE, _CHAT_LEAD, _CHAT_MAX_CHARS,
+from bridge_text import (EXAMPLES, HELP, VERSION_WORDS, is_examples_request, MARK_SEND_FILE, _CHAT_LEAD, _CHAT_MAX_CHARS,
                          _CHAT_NOUNS, _CHAT_OFF_VERBS, _CHAT_ON_VERBS, _CHAT_TAIL,
                          _SEND_DENY_HERE, _SEND_DENY_NAMES, _SEND_LEAD,
                          _SEND_MAX_CHARS, _SEND_POLITE, _SEND_PUNCT,
@@ -907,7 +907,7 @@ class Bridge(TemplateMixin, BatchMixin, ArtifactMixin, DeliveryMixin, ProgressMi
         self.cfg["allowed_user_ids"] = users
         self.allowed = allowed_set(self.cfg)
         log.info("已通过绑定码加入白名单 user=%s", uid)
-        self.reply(msg, "✅ 绑定成功。发送“开始对话”就可以开始使用，发送 /help 查看能做什么。")
+        self.reply(msg, "✅ 绑定成功。发送“开始对话”就可以开始使用；发送“示例”看看可以让我做什么。")
         return True
 
     def _dispatch_free(self, msg, uid, body):
@@ -922,8 +922,10 @@ class Bridge(TemplateMixin, BatchMixin, ArtifactMixin, DeliveryMixin, ProgressMi
             return HELP
         if low == "/id":
             return "你的用户 ID：\n%s" % uid
-        if low in ("/version", "版本", "版本号"):
+        if low in VERSION_WORDS:
             return updater.status_text(HERE)
+        if is_examples_request(body):
+            return EXAMPLES
         if low == "/where":
             return "工作目录：%s" % self.workdir
         if low in ("/apps", "/app", "/应用", "应用列表"):
