@@ -14,7 +14,7 @@
 2. 套件表是显式登记，不做"扫描 selftest*.py 然后全跑"。清单本身也有防漂移检查：
    快速子集的模块清单必须与 ``tools/pre-commit.ps1`` 里那份逐字一致。
 3. 计数取**真实结果对象或机器可读输出**：unittest 走子进程里的 ``TestResult``，
-   旧入口 ``selftest.py`` 走它自己写出的 JSON 摘要（环境变量 SELFTEST_REPORT_JSON）。
+   旧入口 ``tests/selftest.py`` 走它自己写出的 JSON 摘要（环境变量 SELFTEST_REPORT_JSON）。
    不去正则匹配中文终端文本，也不因为出现"OK"就判定整体通过。
 4. 旧入口记的是**检查条目数**，unittest 记的是**测试用例数**，两者单位不同，
    报告里分开写、不相加、不冒充一个"总测试数"。
@@ -57,17 +57,62 @@ FAST_MODULES = (
 )
 
 # 验证入口的测试会真跑 quick，因此只登记到 offline，不能放进 quick 造成递归。
-OFFLINE_ONLY_MODULES = ('tests.selftest_identity', 'tests.selftest_verify', 'tests.selftest_result_revisions', 'tests.selftest_desktop_files', 'tests.selftest_desktop_schedules',
-                        'tests.selftest_task_handoff', 'tests.selftest_attachment_limit',
-                        'tests.selftest_structured_results', 'tests.selftest_history_resilience',
-                        'tests.selftest_history_paths', 'tests.selftest_intake_delivery',
-                        'tests.selftest_task_artifacts', 'tests.selftest_artifact_integration',
-                        'tests.selftest_queue_management', 'tests.selftest_attachment_batches',
-                        'tests.selftest_batch_integration', 'tests.selftest_task_templates',
-                        'tests.selftest_template_journal', 'tests.selftest_template_integration',
-                        'tests.selftest_journal_retention', 'tests.selftest_snapshot_lifecycle',
-                        'tests.selftest_command_guidance', 'tests.selftest_template_result_checks', 'tests.selftest_desktop_workflow', 'tests.selftest_task_progress',
-                        'tests.selftest_result_checks_integration', 'tests.selftest_workflow_actions', 'tests.selftest_template_desktop')
+# 新增 tests/selftest_*.py 必须登记到某个套件（或由 tests/selftest.py 导入），
+# 否则 unregistered_test_modules() 会让 tests.selftest_verify 失败。
+OFFLINE_ONLY_MODULES = (
+    'tests.selftest_identity',
+    'tests.selftest_verify',
+    'tests.selftest_result_revisions',
+    'tests.selftest_desktop_files',
+    'tests.selftest_desktop_schedules',
+    'tests.selftest_task_handoff',
+    'tests.selftest_attachment_limit',
+    'tests.selftest_structured_results',
+    'tests.selftest_history_resilience',
+    'tests.selftest_history_paths',
+    'tests.selftest_intake_delivery',
+    'tests.selftest_task_artifacts',
+    'tests.selftest_artifact_integration',
+    'tests.selftest_queue_management',
+    'tests.selftest_attachment_batches',
+    'tests.selftest_batch_integration',
+    'tests.selftest_task_templates',
+    'tests.selftest_template_journal',
+    'tests.selftest_template_integration',
+    'tests.selftest_journal_retention',
+    'tests.selftest_snapshot_lifecycle',
+    'tests.selftest_command_guidance',
+    'tests.selftest_template_result_checks',
+    'tests.selftest_desktop_workflow',
+    'tests.selftest_task_progress',
+    'tests.selftest_result_checks_integration',
+    'tests.selftest_workflow_actions',
+    'tests.selftest_template_desktop',
+    # 2026-11-08 补登记：此前未进入任何套件，CI 不会执行。
+    'tests.selftest_app_discovery',
+    'tests.selftest_app_preferences',
+    'tests.selftest_backend_integration',
+    'tests.selftest_deepseek',
+    'tests.selftest_edge_launch',
+    'tests.selftest_memory',
+    'tests.selftest_model_health',
+    'tests.selftest_quick_status',
+    'tests.selftest_receive_cancel',
+    'tests.selftest_recent_inbox',
+    'tests.selftest_result_feedback',
+    'tests.selftest_runtime_backend',
+    'tests.selftest_task_control',
+    'tests.selftest_task_details',
+    'tests.selftest_task_feedback',
+    'tests.selftest_task_history',
+    'tests.selftest_task_journal',
+    'tests.selftest_transfer_cancel',
+    'tests.selftest_ui_palette',
+    'tests.selftest_api_profiles',
+    'tests.selftest_updater',
+    'tests.selftest_onboarding',
+    'tests.selftest_installer',
+)
 
 SUITES = {
     'quick': {
@@ -77,14 +122,14 @@ SUITES = {
         'runs': ({'id': 'fast', 'kind': 'cases', 'modules': FAST_MODULES},),
     },
     'offline': {
-        'description': '离线回归：旧入口 selftest.py 的全部检查、快速子集，'
+        'description': '离线回归：旧入口 tests/selftest.py 的全部检查、快速子集，'
                        '以及代码身份、验证入口、取消、附件反馈、接收确认、文字补发和历史读取专项；各项分别记录。'
                        '单位不同（检查条目数 vs 测试用例数）。',
         'requirements': '离线、不需要真实 config.json 或 .runtime（测试自建模拟服务、'
                         '合成数据和临时目录）；约 4 分钟。**不覆盖手机实机行为**——'
                         '收发、附件、取消、提醒这些仍要按 实机验收.md 在手机上验收。',
         'runs': (
-            {'id': 'selftest-checks', 'kind': 'checks', 'script': 'selftest.py'},
+            {'id': 'selftest-checks', 'kind': 'checks', 'script': 'tests/selftest.py'},
             {'id': 'fast', 'kind': 'cases', 'modules': FAST_MODULES},
             {'id': 'offline-only', 'kind': 'cases', 'modules': OFFLINE_ONLY_MODULES},
         ),
@@ -126,6 +171,23 @@ def fast_modules_drift(root=ROOT):
         return '快速子集清单与 tools/pre-commit.ps1 不一致：verify.py=%s / pre-commit.ps1=%s' % (
             list(FAST_MODULES), list(declared))
     return None
+
+
+def unregistered_test_modules(root=ROOT):
+    """tests/selftest_*.py 中既未登记到任何套件、也未被 tests/selftest.py 导入的模块。"""
+    root = Path(root)
+    registered = set()
+    for suite in SUITES.values():
+        for run in suite['runs']:
+            for name in run.get('modules', ()):
+                registered.add('.'.join(name.split('.')[:2]))
+    try:
+        legacy = (root / 'tests' / 'selftest.py').read_text(encoding='utf-8', errors='replace')
+    except OSError:
+        legacy = ''
+    registered.update(re.findall(r'^from (tests\.selftest_\w+) import', legacy, re.M))
+    present = {'tests.' + path.stem for path in (root / 'tests').glob('selftest_*.py')}
+    return sorted(present - registered)
 
 
 def write_json(path, value):

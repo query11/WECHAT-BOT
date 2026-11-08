@@ -96,5 +96,10 @@
     "base_url": "https://api.anthropic.com",
     "model": "",
     "key_file": ".runtime/claude-api.key"
+  },
+  "update": {
+    "enabled": true,
+    "repo": "query11/WECHAT-BOT",
+    "prerelease": false
   }
 }

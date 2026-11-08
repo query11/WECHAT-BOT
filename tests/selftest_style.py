@@ -32,7 +32,7 @@ import re
 
 from tests.selftest_base import check
 
-HERE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+HERE = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "app")
 
 # 十个记号，和 使用速查.md 的「它回话的排版」那一节一一对应。
 # ⏹ 是 2026-09 加 /stop 时补的：叫停和「没办成」（❌）是两回事，一个是你自己喊停的，

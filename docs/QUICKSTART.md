@@ -1,11 +1,27 @@
 # 快速开始
 
+## 使用安装包（推荐）
+
+1. 打开[最新 Release](https://github.com/query11/WECHAT-BOT/releases/latest)，下载 `WeChatAssistant-Setup-x.y.z.exe`。
+2. 双击安装。安装包自带 Python，无需预装 Python、Git 或管理员权限，默认位置是 `%LOCALAPPDATA%\Programs\WeChatAssistant`。安装包尚未签名；核对 `SHA256SUMS.txt` 后，SmartScreen 提示可选“更多信息 → 仍要运行”。
+3. 从开始菜单启动“微信助手”，按使用引导阅读免责声明、检查环境、选择目录、配置模型、扫码和绑定。没有 Claude Code 可在引导中一键安装；模型账号和网络仍需自行准备。
+
+**升级**：退出所有助手窗口，运行新版安装包并选择原安装位置。配置、固定记忆和任务历史会保留；应用内更新也可更新程序文件，但不会更换内置 Python，升级 Python 请使用新版安装包。
+
+**卸载**：打开 Windows 设置 → 应用 → 微信助手 → 卸载。确认框默认选择“否”，保留配置、记忆和任务历史，便于重新安装后继续使用；选择“是”才删除这些数据。静默卸载始终保留数据。用户选择的工作目录、收件目录不删除；若它们与程序目录重叠或存在目录链接，卸载会中止，需先迁移并修改配置。
+
+可以用 `Get-FileHash .\WeChatAssistant-Setup-x.y.z.exe -Algorithm SHA256` 与同一 Release 的 `SHA256SUMS.txt` 对照。
+
+## 从源码手动运行
+
+> **最简单的方式**：准备好 Python 后，双击 `微信助手.bat`。首次运行会打开“使用引导”，依次阅读免责声明、检查环境（没有 Claude Code 时可一键安装）、选择工作目录、选择模型服务、扫码登录微信，并用一次性绑定码把你的微信加入白名单（在微信里发送“绑定 六位数字”即可，无需手动复制用户 ID）。完成后自动打开运行中心。之后可在托盘菜单“设置 → 使用引导”重新打开。下面是手动配置的完整步骤。
+
 ## 1. 准备环境
 
 - Windows 10/11，使用能打开本机桌面应用的 Windows 用户。
 - Python 3.10+，已加入 `PATH`。
 - Windows PowerShell 5.1（系统自带）及 Git。
-- 已安装、可正常使用的 Claude Code CLI；选择 DeepSeek 时也需要该 CLI。
+- 已安装、可正常使用的 Claude Code CLI；选择 DeepSeek 时也需要该 CLI。可以在使用引导中一键安装（官方安装脚本，不需要 Node.js），也可以按[官方安装说明](https://code.claude.com/docs/en/setup)手动安装。
 - 可扫码登录 iLink 的微信账号，以及可用的网络和模型服务账号。
 
 先在普通终端检查 `python --version` 和 `claude --version`。Claude Code 的账号、API 或模型服务配置需在本机完成；本仓库不提供登录凭据或 API Key。
@@ -45,8 +61,8 @@ JSON 中 Windows 反斜杠需要写两次，例如 `"workdir": "C:\\WeChatBot\\w
 ## 4. 登录并设置白名单
 
 ```powershell
-powershell -NoProfile -ExecutionPolicy Bypass -File .\start_wechat.ps1 -Login
-python wechat_bridge.py run
+powershell -NoProfile -ExecutionPolicy Bypass -File .\desktop\start_wechat.ps1 -Login
+python app\wechat_bridge.py run
 ```
 
 按终端提示扫码。登录成功后启动长轮询，从微信向机器人发送一条消息。白名单为空时只返回用户 ID，不执行任务。
@@ -60,7 +76,7 @@ python wechat_bridge.py run
 按 `Ctrl+C` 退出前台进程，再运行配置检查：
 
 ```powershell
-powershell -NoProfile -ExecutionPolicy Bypass -File .\start_wechat.ps1 -Check
+powershell -NoProfile -ExecutionPolicy Bypass -File .\desktop\start_wechat.ps1 -Check
 ```
 
 检查会读取本机能力；其中模型设置检查不等于真实 API 调用已成功。如果提示找不到 Claude、目录不存在或尚未登录，按对应项目处理后再开始任务。
@@ -84,7 +100,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\start_wechat.ps1 -Check
 可选设置当前用户登录后自启动：
 
 ```powershell
-powershell -NoProfile -ExecutionPolicy Bypass -File .\install_autostart.ps1
+powershell -NoProfile -ExecutionPolicy Bypass -File .\desktop\install_autostart.ps1
 ```
 
 这不是登录前运行的系统服务。电脑睡眠、休眠或关机后不会响应微信。
@@ -104,6 +120,8 @@ python tools/set_backend.py claude
 
 ## 已有安装如何更新
 
+通过发布包安装时，运行中心会在 GitHub 发布新版本后提示，点击“新版本”即可一键更新，配置与数据保持不变，详见[发布与更新](reference/发布与更新.md)。以下为手动更新或 Git 安装的步骤：
+
 1. 在运行中心查看当前任务、排队任务和附件，等待处理结束。
 2. 本地备份 `config.json`、`BOT_MEMORY.md` 和 `.runtime/` 中需要保留的任务数据。
 3. 更新代码。通过 Git 安装时执行 `git pull --ff-only`；有本地代码改动时先提交或妥善保存。
@@ -112,12 +130,22 @@ python tools/set_backend.py claude
 
 异常重启后不要盲目重发。未开始且符合条件的文字任务可手动恢复；已开始或效果不确定的任务，先检查文件和外部应用。
 
+## 卸载
+
+先退出程序，再在项目目录执行：
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File .\desktop\uninstall.ps1
+```
+
+这会关闭托盘、停止后台并移除开机自启动，保留配置和任务记录，之后可以直接删除程序文件夹。加上 `-RemoveData` 会同时删除 `config.json`、`BOT_MEMORY.md`、`.runtime/` 等个人数据。两种方式都不会删除你选择的工作目录和收件目录。
+
 ## 常见问题
 
 | 现象 | 先检查什么 |
 | --- | --- |
 | 微信不执行任务 | 是否已加入白名单、是否已“开始对话”、后台是否连接 |
-| 找不到 `claude` | 在同一 Windows 用户的终端运行 `claude --version`，核对 `PATH` 或 `claude_bin` |
+| 找不到 `claude` | 在同一 Windows 用户的终端运行 `claude --version`，核对 `PATH` 或 `claude_bin`；刚安装完时，引导会自动找到 `%USERPROFILE%\.local\bin\claude.exe` |
 | 模型不能读取附件 | `inbox.dir` 是否位于允许目录、文件是否实际下载到本机 |
 | 提示“路径解析后发生重定向” | 使用完整目录名称，避免 `RUNNER~1` 一类 Windows 短名称；文件路径中也不要使用符号链接或目录联接 |
 | 持续黄色或 TLS 报错 | 运行中心故障提示、网络与代理设置、本机 `bridge.log` |

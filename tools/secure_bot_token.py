@@ -9,7 +9,7 @@ from pathlib import Path
 import sys
 
 PROJECT = Path(__file__).resolve().parents[1]
-sys.path.insert(0, str(PROJECT))
+sys.path.insert(0, str(PROJECT / "app"))
 from bridge_config import make_console_safe, secure_bot_token
 
 

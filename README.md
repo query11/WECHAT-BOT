@@ -1,5 +1,11 @@
 # WECHAT-BOT · 微信助手
 
+## 下载安装
+
+到 [最新版本下载页](https://github.com/query11/WECHAT-BOT/releases/latest) 下载 **WeChatAssistant-Setup-x.y.z.exe**，双击安装。支持 Windows 10/11 x64（含支持 x64 仿真的 ARM64），自带 Python，无需管理员权限。安装后从开始菜单打开“微信助手”，按使用引导完成设置；Claude Code 可在引导中一键安装。
+
+安装包暂未做代码签名。如果 Windows SmartScreen 提示，在确认来自本仓库并核对 `SHA256SUMS.txt` 后，选择“更多信息 → 仍要运行”。升级可直接运行新版安装包；卸载时会询问是否删除个人数据，默认保留。详见[安装、升级与卸载](docs/QUICKSTART.md)。
+
 通过个人微信给 Windows 电脑发送任务：处理文件、取回结果、管理任务队列，以及控制本机应用。桌面运行中心提供任务记录、附件核对、常用模板、结果继续修改和定时任务管理。
 
 消息经 iLink 长轮询传到本机，文件与工具操作由 Claude Code 执行；模型后端可选 Claude 或 DeepSeek。无需公网 IP 或内网穿透。
@@ -18,9 +24,9 @@
 | 定时安排 | 设置一次性或每天重复的提醒、自动任务 |
 | 本机控制 | 打开应用、调节音量、截图与窗口交互、腾讯会议及电源操作 |
 
-## 快速开始
+## 从源码运行
 
-需要 Windows 10/11、Python 3.10+、Windows PowerShell 5.1，以及已配置可用的 Claude Code CLI。使用 DeepSeek 后端仍需要 Claude Code 执行本机工具。
+需要 Windows 10/11、Python 3.10+、Windows PowerShell 5.1，以及已配置可用的 Claude Code CLI（使用引导可一键安装，不需要 Node.js）。使用 DeepSeek 后端仍需要 Claude Code 执行本机工具。
 
 ```powershell
 git clone https://github.com/query11/WECHAT-BOT.git
@@ -31,16 +37,18 @@ Copy-Item BOT_MEMORY.example.md BOT_MEMORY.md
 New-Item -ItemType Directory -Force C:\WeChatBot\workspace\inbox | Out-Null
 ```
 
-打开 `config.json`，按实际环境填写 `workdir` 和 `inbox.dir`；示例使用上面的目录。先在终端确认 `claude --version` 可运行，并完成模型账号配置。然后扫码登录：
+**更简单的方式**：完成上面的 `git clone` 与依赖安装后，直接双击 `微信助手.bat`，首次运行会进入“使用引导”，按步骤完成目录、模型、扫码登录和微信绑定（发送一次性绑定码即可加入白名单）。
+
+手动配置时，打开 `config.json`，按实际环境填写 `workdir` 和 `inbox.dir`；示例使用上面的目录。先在终端确认 `claude --version` 可运行，并完成模型账号配置。然后扫码登录：
 
 ```powershell
-powershell -NoProfile -ExecutionPolicy Bypass -File .\start_wechat.ps1 -Login
-python wechat_bridge.py run
+powershell -NoProfile -ExecutionPolicy Bypass -File .\desktop\start_wechat.ps1 -Login
+python app\wechat_bridge.py run
 ```
 
 第一次运行时白名单为空，微信消息只会获得用户 ID 提示。将自己的 ID 加入 `allowed_user_ids`，在终端按 `Ctrl+C` 退出，再双击 **`微信助手.bat`** 启动桌面运行中心。从微信发送“开始对话”，再发送任务。
 
-完整配置、模型切换和登录自启动见 **[快速开始](docs/QUICKSTART.md)**；已有安装请先阅读[更新说明](docs/QUICKSTART.md#已有安装如何更新)。
+完整配置、模型切换、登录自启动和卸载见 **[快速开始](docs/QUICKSTART.md)**。新版本在 GitHub 发布后，运行中心会提示并支持一键更新，见[发布与更新](docs/reference/发布与更新.md)。
 
 ## 常用指令
 
@@ -55,6 +63,7 @@ python wechat_bridge.py run
 | `/artifacts latest` | 查看最近已结束任务的产物 |
 | `/getfile latest all` | 请求发送最近任务的全部可发送产物 |
 | `开始收集附件` | 建立多附件批次，发齐后核对并确认执行 |
+| `/version` | 查看当前版本与是否有新版本 |
 
 更多指令和适用条件见[使用速查](docs/reference/使用速查.md)。
 
@@ -62,26 +71,23 @@ python wechat_bridge.py run
 
 ```text
 WECHAT-BOT/
-├── README.md                  # 项目入口
+├── 微信助手.bat               # 双击启动（首次运行进入使用引导）
+├── app/                       # 后台程序（Python）：微信连接、消息路由、任务、模型后端
+├── desktop/                   # Windows 桌面端（PowerShell）：托盘、各窗口、启动/开关/卸载脚本、图标
+├── tests/                     # 离线测试与模拟服务（tests/selftest.py 为旧版链路自测入口）
+├── tools/                     # 验证、配置维护及开发工具
+├── installer/                 # 自带 Python 的安装包构建、安装和卸载实测
+├── docs/                      # 使用、架构、功能和验收文档
+├── .github/workflows/         # Windows 自动回归与发布
 ├── config.example.json        # 通用配置示例，无登录凭据
 ├── BOT_MEMORY.example.md      # 固定记忆示例
-├── requirements.txt           # 登录二维码依赖
-├── 微信助手.bat               # 桌面入口
-├── start_wechat.ps1            # 登录、检查、前台启动
-├── wechat_bridge.py            # 消息路由、调度和命令行入口
-├── bridge_*.py                # 按功能拆分的消息处理层
-├── claude_runner.py           # Claude Code 执行器
-├── deepseek_runner.py         # DeepSeek 兼容后端
-├── task_*.py / desktop_*.py    # 任务数据、产物和桌面工作流
-├── tray_app.ps1 / *_ui.ps1     # WinForms 运行中心和操作窗口
-├── tests/                     # 测试与模拟服务
-├── selftest.py                # 保留的离线链路测试入口
-├── tools/                     # 验证、配置维护及开发工具
-├── docs/                      # 使用、架构、功能和验收文档
-└── .github/workflows/         # Windows 自动回归
+├── VERSION / requirements.txt # 版本号与 Python 依赖
+└── LICENSE / DISCLAIMER.md    # MIT 许可证与使用说明、免责声明
 ```
 
-运行模块继续采用根目录导入，便于既有快捷方式、自启动脚本与本机配置使用。模块职责和数据流见[架构说明](docs/ARCHITECTURE.md)，完整阅读入口见[文档索引](docs/README.md)。
+运行后生成的 `config.json`、`BOT_MEMORY.md`、`.runtime/` 和日志都保存在项目根目录（安装版即安装目录），不提交 Git。
+
+`app/` 中的模块按原名互相导入（`import wechat_bridge`），由 `desktop/` 的脚本以 `python app\xxx.py` 启动。模块职责和数据流见[架构说明](docs/ARCHITECTURE.md)，完整阅读入口见[文档索引](docs/README.md)。
 
 ## 验证与开发
 
@@ -104,4 +110,6 @@ python tools/verify.py --suite integration
 - `config.json`、`BOT_MEMORY.md`、`.runtime/`、API 密钥、会话文件和日志不上传 Git。仓库只提供配置与记忆示例。
 - iLink、模型服务和 Windows 桌面能力会影响可用性；文件大小、发送数量及结果核验也有明确范围，详见[功能详解](docs/reference/功能详解.md)。
 
-本仓库暂未指定开源许可证；如需分发或商用，请先与维护者确认授权。
+## 许可证与免责声明
+
+本项目以 [MIT 许可证](LICENSE) 发布，可自由使用、修改和再分发，需保留版权声明。微信助手是个人开发的非官方工具，与腾讯、微信及各模型服务商无关；使用前请阅读[使用说明与免责声明](DISCLAIMER.md)，了解账号、本机权限、模型费用与数据方面的风险。

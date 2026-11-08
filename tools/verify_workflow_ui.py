@@ -11,7 +11,7 @@ import time
 from unittest.mock import Mock
 
 ROOT = Path(__file__).resolve().parent.parent
-sys.path.insert(0, str(ROOT))
+sys.path[:0] = [str(ROOT / 'app'), str(ROOT)]
 from bridge_runtime import Runtime
 from tests.selftest_workflow_actions import WorkflowTests
 from task_templates import TaskTemplateStore
@@ -90,10 +90,10 @@ def main():
         thread.start()
         shell = Path(os.environ.get('SystemRoot', 'C:/Windows')) / 'System32/WindowsPowerShell/v1.0/powershell.exe'
         command = [str(shell), '-NoProfile', '-STA', '-ExecutionPolicy', 'Bypass',
-                   '-File', str(ROOT / 'task_history.ps1'), '-Verify', '-VerifyActions',
+                   '-File', str(ROOT / 'desktop' / 'task_history.ps1'), '-Verify', '-VerifyActions',
                    '-SkipClipboardVerification', '-Root', str(fixture.root), '-FocusId', seed_task]
         template_command = [str(shell), '-NoProfile', '-STA', '-ExecutionPolicy', 'Bypass',
-                            '-File', str(ROOT / 'template_editor.ps1'), '-Verify', '-Root', str(fixture.root), '-TaskId', seed_task]
+                            '-File', str(ROOT / 'desktop' / 'template_editor.ps1'), '-Verify', '-Root', str(fixture.root), '-TaskId', seed_task]
         template_result = subprocess.run(template_command, capture_output=True, encoding='utf-8', errors='replace',
                                          timeout=90, creationflags=subprocess.CREATE_NO_WINDOW)
         (args.output / 'template-verification.log').write_text(template_result.stdout + template_result.stderr, encoding='utf-8')
@@ -107,7 +107,7 @@ def main():
         if screenshot.exists():
             shutil.copy2(screenshot, args.output / screenshot.name)
         workflow_command = [str(shell), '-NoProfile', '-STA', '-ExecutionPolicy', 'Bypass',
-                            '-File', str(ROOT / 'workflow_window.ps1'), '-Verify', '-Root', str(fixture.root),
+                            '-File', str(ROOT / 'desktop' / 'workflow_window.ps1'), '-Verify', '-Root', str(fixture.root),
                             '-Page', 'batches', '-ItemId', review_batch['id']]
         workflow_result = subprocess.run(workflow_command, capture_output=True, encoding='utf-8', errors='replace',
                                          timeout=120, creationflags=subprocess.CREATE_NO_WINDOW)
@@ -131,7 +131,7 @@ def main():
             Path(json.loads(r[0])['files'][0]['path']).read_bytes() == (fixture.root/'desktop-input.csv').read_bytes()
             for r in file_tasks))
         history_revision_command = [str(shell), '-NoProfile', '-STA', '-ExecutionPolicy', 'Bypass',
-                                    '-File', str(ROOT / 'task_history.ps1'), '-Verify',
+                                    '-File', str(ROOT / 'desktop' / 'task_history.ps1'), '-Verify',
                                     '-SkipClipboardVerification', '-Root', str(fixture.root)]
         history_revision_result = subprocess.run(history_revision_command, capture_output=True, encoding='utf-8',
                                                 errors='replace', timeout=60, creationflags=subprocess.CREATE_NO_WINDOW)
@@ -144,7 +144,7 @@ def main():
         for script in ('task_history.ps1', 'template_editor.ps1', 'workflow_window.ps1', 'tray_app.ps1'):
             for mode in ('save', 'read'):
                 command = [str(shell), '-NoProfile', '-STA', '-ExecutionPolicy', 'Bypass',
-                           '-File', str(ROOT / script), '-PreferenceProbe', mode,
+                           '-File', str(ROOT / 'desktop' / script), '-PreferenceProbe', mode,
                            '-PreferenceRoot' if script == 'tray_app.ps1' else '-Root', str(fixture.root)]
                 probe = subprocess.run(command, capture_output=True, encoding='utf-8', errors='replace',
                                        timeout=45, creationflags=subprocess.CREATE_NO_WINDOW)

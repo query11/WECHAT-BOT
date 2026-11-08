@@ -50,7 +50,8 @@ class TaskControlTests(unittest.TestCase):
         b.queue=TwoQueue();b.runner=Mock();b.enable_typing=False;b.notice_after=0
         b.send_file_limit=3;b.send_file_enable=True;b._set_stage=Mock()
         def run(uid,prompt):
-            if prompt=='first':first_started.set();finish_first.wait(5)
+            # _run_task prepends inbox context and ARTIFACT_PROMPT; the task body is the suffix.
+            if prompt.endswith('first'):first_started.set();finish_first.wait(5)
             else:second_started.set()
             return 'done'
         def cancel():cancel_entered.set();finish_cancel.wait(5);return True

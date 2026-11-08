@@ -366,13 +366,13 @@ def test_scripts_are_ascii_and_read_utf8():
        UTF-8；不加这个参数，中文一多就会解错，ConvertFrom-Json 直接报
        「传入的对象无效，应为":"或"}"」。也是 2026-09-26 真机上撞出来的。
     """
-    here = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    here = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "desktop")
     names = [n for n in sorted(os.listdir(here)) if n.endswith(".ps1")]
     check("找得到 .ps1 脚本", len(names) >= 2, names)
     for name in names:
         with open(os.path.join(here, name), "rb") as fh:
             raw = fh.read()
-        if name in ("tray_app.ps1", "memory_editor.ps1", "backend_editor.ps1", "app_settings.ps1", "task_history.ps1", "template_editor.ps1", "workflow_window.ps1", "workbench_layout.ps1", "result_revision_ui.ps1", "desktop_files_ui.ps1", "schedule_ui.ps1"):
+        if name in ("tray_app.ps1", "memory_editor.ps1", "backend_editor.ps1", "app_settings.ps1", "task_history.ps1", "template_editor.ps1", "workflow_window.ps1", "workbench_layout.ps1", "result_revision_ui.ps1", "desktop_files_ui.ps1", "schedule_ui.ps1", "setup_wizard.ps1", "update_window.ps1"):
             # 中文界面使用 BOM，让 Windows PowerShell 5.1 明确按 UTF-8 解码。
             check("托盘界面带 UTF-8 BOM", raw.startswith(b"\xef\xbb\xbf"))
             text = raw.decode("utf-8-sig")

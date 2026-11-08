@@ -656,7 +656,7 @@ def test_all_enqueue_goes_through_one_door():
     直接在别处 `self.queue.put(...)` 的话，队列满了就会阻塞轮询线程——这个错改回来
     太容易了（本来就是 put），所以拿源码把它卡住。
     """
-    here = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    here = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "app")
     bad = []
     for name in ("wechat_bridge.py", "bridge_screen.py", "bridge_files.py",
                  "bridge_meeting.py", "bridge_media.py", "bridge_power.py",

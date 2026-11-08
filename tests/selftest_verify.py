@@ -87,6 +87,14 @@ class RegistryTests(unittest.TestCase):
         # selftest_verify 会真跑一次 quick，登记到 quick 自身会递归启动子进程。
         self.assertNotIn('tests.selftest_verify', quick)
 
+    def test_every_test_module_belongs_to_a_suite(self):
+        # 未登记的测试文件不会被任何入口执行，CI 也不会发现它已经过期。
+        self.assertEqual(verify.unregistered_test_modules(ROOT), [])
+        with tempfile.TemporaryDirectory() as tmp:
+            (Path(tmp) / 'tests').mkdir()
+            (Path(tmp) / 'tests' / 'selftest_orphan.py').write_text('', encoding='utf-8')
+            self.assertEqual(verify.unregistered_test_modules(tmp), ['tests.selftest_orphan'])
+
     def test_default_entry_only_runs_quick(self):
         # 不带 --suite 时只请求 quick，绝不顺手带上集成测试。
         with patch.object(sys, 'argv', ['verify.py']), \
