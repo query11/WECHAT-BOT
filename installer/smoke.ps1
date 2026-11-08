@@ -21,8 +21,18 @@ function Run-Exe($path, $arguments) {
     $id = [Guid]::NewGuid().ToString('N')
     $stdout = Join-Path $logs ($id + '.stdout.log')
     $stderr = Join-Path $logs ($id + '.stderr.log')
-    $proc = Start-Process -FilePath $path -ArgumentList $arguments -WindowStyle Hidden -PassThru -RedirectStandardOutput $stdout -RedirectStandardError $stderr
+    $info = New-Object Diagnostics.ProcessStartInfo
+    $info.FileName = $path; $info.Arguments = $arguments
+    $info.UseShellExecute = $false; $info.CreateNoWindow = $true
+    $info.RedirectStandardOutput = $true; $info.RedirectStandardError = $true
+    $proc = New-Object Diagnostics.Process
+    $proc.StartInfo = $info
+    if (-not $proc.Start()) { throw ('Could not start: ' + $path) }
+    $outTask = $proc.StandardOutput.ReadToEndAsync()
+    $errTask = $proc.StandardError.ReadToEndAsync()
     if (-not $proc.WaitForExit(180000)) { throw ('Timed out: ' + $path) }
+    [IO.File]::WriteAllText($stdout, $outTask.Result)
+    [IO.File]::WriteAllText($stderr, $errTask.Result)
     if ($proc.ExitCode -ne 0) { Get-Content -LiteralPath $stdout,$stderr | Write-Host }
     Assert ($proc.ExitCode -eq 0) ('Exit code ' + $proc.ExitCode + ': ' + $path)
 }

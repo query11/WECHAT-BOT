@@ -6,7 +6,7 @@ $python = (Get-Command python -CommandType Application | Select-Object -First 1)
 $name = 'WeChatIntegration-' + [Guid]::NewGuid().ToString('N')
 $report = Join-Path $root '.runtime\verification\github-integration\report.json'
 if (Test-Path -LiteralPath $report) { throw 'Integration report already exists' }
-$action = New-ScheduledTaskAction -Execute $python -Argument ('"' + (Join-Path $root 'tools\verify.py') + '" --suite integration --label github-integration') -WorkingDirectory $root
+$action = New-ScheduledTaskAction -Execute $python -Argument ('-X utf8 "' + (Join-Path $root 'tools\verify.py') + '" --suite integration --label github-integration') -WorkingDirectory $root
 $principal = New-ScheduledTaskPrincipal -UserId ([Security.Principal.WindowsIdentity]::GetCurrent().Name) -LogonType Interactive -RunLevel Limited
 $settings = New-ScheduledTaskSettingsSet -ExecutionTimeLimit (New-TimeSpan -Minutes 6)
 try {
