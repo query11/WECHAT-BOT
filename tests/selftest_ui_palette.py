@@ -10,13 +10,14 @@ import re
 import unittest
 
 ROOT = Path(__file__).resolve().parent.parent
-THEME = ROOT / 'tray_theme.cs'
+DESKTOP = ROOT / 'desktop'
+THEME = DESKTOP / 'tray_theme.cs'
 TEXT_TOKENS = ('Blue', 'Heading', 'TextColor', 'MutedColor', 'SuccessText',
                'WarningText', 'DangerText', 'StandbyText')
 
 
 def ui_scripts():
-    return sorted(path for path in ROOT.glob('*.ps1')
+    return sorted(path for path in DESKTOP.glob('*.ps1')
                   if 'TrayDesign' in path.read_text(encoding='utf-8-sig'))
 
 

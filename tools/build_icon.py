@@ -1,4 +1,4 @@
-"""Builds the app icon (wechat-assistant-v2.ico) and previews under .runtime/.
+"""Builds the app icon (desktop/wechat-assistant-v2.ico) and previews under .runtime/.
 
 Design v3: blue squircle with a soft top light, a translucent back bubble and a
 white front bubble carrying an AI sparkle. 16/24 px are drawn separately with
@@ -124,7 +124,7 @@ def main():
     images = {size: render(size) for size in SIZES}
     images[256].save('.runtime/wechat-assistant-icon.png')
     # append_images supplies the hand-tuned small sizes instead of scaled copies.
-    images[256].save('wechat-assistant-v2.ico', sizes=[(s, s) for s in SIZES],
+    images[256].save('desktop/wechat-assistant-v2.ico', sizes=[(s, s) for s in SIZES],
                      append_images=[images[s] for s in SIZES if s != 256])
     preview = Image.new('RGBA', (620, 300), (28, 71, 111, 255))
     preview.alpha_composite(images[256], (24, 22))
@@ -133,7 +133,7 @@ def main():
         preview.alpha_composite(images[size], (x, 150 - size // 2))
         x += size + 18
     preview.save('.runtime/icon-preview.png')
-    print('ICO sizes:', sorted(Image.open('wechat-assistant-v2.ico').ico.sizes()))
+    print('ICO sizes:', sorted(Image.open('desktop/wechat-assistant-v2.ico').ico.sizes()))
 
 
 if __name__ == '__main__':

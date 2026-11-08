@@ -366,7 +366,7 @@ def test_scripts_are_ascii_and_read_utf8():
        UTF-8；不加这个参数，中文一多就会解错，ConvertFrom-Json 直接报
        「传入的对象无效，应为":"或"}"」。也是 2026-09-26 真机上撞出来的。
     """
-    here = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    here = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "desktop")
     names = [n for n in sorted(os.listdir(here)) if n.endswith(".ps1")]
     check("找得到 .ps1 脚本", len(names) >= 2, names)
     for name in names:

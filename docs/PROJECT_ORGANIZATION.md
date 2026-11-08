@@ -33,4 +33,21 @@
 - `tools/verify.py` 的 offline 套件补登记 18 个此前未进入任何入口的测试模块（共 134 个用例），CI 现在会执行它们。其中 `tests.selftest_task_control` 的一个用例因任务前缀变化已过期，按原意修正为匹配任务正文结尾。
 - 新增 `unregistered_test_modules()` 检查：`tests/selftest_*.py` 既未登记套件、也未被 `selftest.py` 导入时，`tests.selftest_verify` 失败。
 - `.editorconfig` 为含中文界面的 WinForms 脚本声明 `utf-8-bom`，避免编辑器保存时去掉 BOM 导致 Windows PowerShell 5.1 解码错误；贡献指南同步写明实际编码规则。
-- 运行模块仍保留在根目录：PowerShell 入口、快捷方式和自启动依赖现有路径，搬迁需要 Windows 实机验收，本轮不做。
+- 运行模块当时仍保留在根目录（见下一节）。
+
+## 2026-11-09 目录整理
+
+根目录从一百多个文件收拢为几个文件夹：
+
+| 原位置 | 新位置 |
+| --- | --- |
+| 根目录全部 Python 模块（67 个） | `app/` |
+| 根目录全部 `.ps1`、`tray_theme.cs`、`independent_process.cs`、图标、`微信开关.bat` | `desktop/` |
+| `selftest.py` | `tests/selftest.py` |
+
+- 根目录只保留 `微信助手.bat`、说明文档、示例配置、`VERSION` 和 `requirements.txt`。
+- 配置、固定记忆、日志、`.runtime/` 仍在项目根目录，已有数据不用迁移。Python 通过新的 `app/project_paths.py`，PowerShell 通过 `desktop/python_runtime.ps1` 中的 `$WeChatHome` 和 `$WeChatApp` 定位。
+- 窗口脚本的 `-Root`、`-ConfigRoot` 默认值改为项目根目录；Python 模块统一从 `app/` 启动。
+- 更新器的必需文件改为 `app/` 和 `desktop/` 下的路径，更新后从 `desktop\launch_tray.ps1` 重新打开。
+- 旧的开机自启动快捷方式指向已不存在的根目录 `launch_tray.ps1`。双击一次 `微信助手.bat` 后，启动器会自动改指向新位置。
+- 验证：Linux 上全部登记的 unittest 模块（800 个用例）只有 4 个已知的 Windows 专属失败，旧版自测 2091 项全部通过。Windows 实机和 Windows CI 尚未验证。

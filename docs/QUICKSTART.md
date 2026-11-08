@@ -47,8 +47,8 @@ JSON 中 Windows 反斜杠需要写两次，例如 `"workdir": "C:\\WeChatBot\\w
 ## 4. 登录并设置白名单
 
 ```powershell
-powershell -NoProfile -ExecutionPolicy Bypass -File .\start_wechat.ps1 -Login
-python wechat_bridge.py run
+powershell -NoProfile -ExecutionPolicy Bypass -File .\desktop\start_wechat.ps1 -Login
+python app\wechat_bridge.py run
 ```
 
 按终端提示扫码。登录成功后启动长轮询，从微信向机器人发送一条消息。白名单为空时只返回用户 ID，不执行任务。
@@ -62,7 +62,7 @@ python wechat_bridge.py run
 按 `Ctrl+C` 退出前台进程，再运行配置检查：
 
 ```powershell
-powershell -NoProfile -ExecutionPolicy Bypass -File .\start_wechat.ps1 -Check
+powershell -NoProfile -ExecutionPolicy Bypass -File .\desktop\start_wechat.ps1 -Check
 ```
 
 检查会读取本机能力；其中模型设置检查不等于真实 API 调用已成功。如果提示找不到 Claude、目录不存在或尚未登录，按对应项目处理后再开始任务。
@@ -86,7 +86,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\start_wechat.ps1 -Check
 可选设置当前用户登录后自启动：
 
 ```powershell
-powershell -NoProfile -ExecutionPolicy Bypass -File .\install_autostart.ps1
+powershell -NoProfile -ExecutionPolicy Bypass -File .\desktop\install_autostart.ps1
 ```
 
 这不是登录前运行的系统服务。电脑睡眠、休眠或关机后不会响应微信。
@@ -121,7 +121,7 @@ python tools/set_backend.py claude
 先退出程序，再在项目目录执行：
 
 ```powershell
-powershell -NoProfile -ExecutionPolicy Bypass -File .\uninstall.ps1
+powershell -NoProfile -ExecutionPolicy Bypass -File .\desktop\uninstall.ps1
 ```
 
 这会关闭托盘、停止后台并移除开机自启动，保留配置和任务记录，之后可以直接删除程序文件夹。加上 `-RemoveData` 会同时删除 `config.json`、`BOT_MEMORY.md`、`.runtime/` 等个人数据。两种方式都不会删除你选择的工作目录和收件目录。

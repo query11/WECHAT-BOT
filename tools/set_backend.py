@@ -7,7 +7,7 @@ import sys
 import tempfile
 
 PROJECT = Path(__file__).resolve().parents[1]
-sys.path.insert(0, str(PROJECT))
+sys.path.insert(0, str(PROJECT / "app"))
 from deepseek_runner import MODELS
 import api_profiles
 from key_vault import read_secret

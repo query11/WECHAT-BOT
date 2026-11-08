@@ -25,8 +25,8 @@ def make_zip(files, prefix='WECHAT-BOT-1.2.0/', extra=None):
     return buf.getvalue()
 
 
-PROGRAM = {'VERSION': '1.2.0\n', 'wechat_bridge.py': 'new bridge', 'tray_app.ps1': 'new tray',
-           'launch_tray.ps1': 'new launcher', 'updater.py': 'new updater', 'docs/new.md': 'new doc',
+PROGRAM = {'VERSION': '1.2.0\n', 'app/wechat_bridge.py': 'new bridge', 'desktop/tray_app.ps1': 'new tray',
+           'desktop/launch_tray.ps1': 'new launcher', 'app/updater.py': 'new updater', 'docs/new.md': 'new doc',
            'requirements.txt': 'qrcode\n'}
 
 
@@ -86,10 +86,11 @@ class Base(unittest.TestCase):
     def setUp(self):
         self.tmp = tempfile.TemporaryDirectory(); self.addCleanup(self.tmp.cleanup)
         self.root = Path(self.tmp.name)
-        for name, text in {'VERSION': '1.0.0\n', 'wechat_bridge.py': 'old bridge', 'tray_app.ps1': 'old tray',
-                           'launch_tray.ps1': 'old launcher', 'updater.py': 'old updater', 'old_module.py': 'obsolete',
+        for name, text in {'VERSION': '1.0.0\n', 'app/wechat_bridge.py': 'old bridge', 'desktop/tray_app.ps1': 'old tray',
+                           'desktop/launch_tray.ps1': 'old launcher', 'app/updater.py': 'old updater', 'old_module.py': 'obsolete',
                            'requirements.txt': 'qrcode\n', 'config.json': '{"update":{"repo":"%s"}}' % REPO,
                            'BOT_MEMORY.md': 'my memory', 'local_note.txt': 'not ours'}.items():
+            (self.root / name).parent.mkdir(parents=True, exist_ok=True)
             (self.root / name).write_text(text, encoding='utf-8')
         (self.root / '.runtime').mkdir()
         (self.root / '.runtime' / 'tasks.sqlite').write_text('db', encoding='utf-8')
@@ -140,7 +141,7 @@ class ArchiveTests(Base):
                                          'runtime/python/python.exe': 'interpreter'}))
         path = self.root / 'a.zip'; path.write_bytes(data)
         out = updater.extract(path, self.root / 'out')
-        self.assertEqual((out / 'wechat_bridge.py').read_text(), 'new bridge')
+        self.assertEqual((out / 'app' / 'wechat_bridge.py').read_text(), 'new bridge')
         for name in ('config.json', '.runtime/x.json', 'keys/a.key', 'runtime/python/python.exe'):
             self.assertFalse((out / name).exists(), name)
 
@@ -173,17 +174,17 @@ class PrepareApplyTests(Base):
         sha = hashlib.sha256(data).hexdigest()
         prepared = updater.prepare(self.root, opener=self.github(data, sums='%s  WECHAT-BOT-1.2.0.zip\n' % sha))
         self.assertTrue(prepared['verified']); self.assertEqual(prepared['version'], '1.2.0')
-        (self.root / '.runtime' / 'update' / 'manifest.json').write_text(json.dumps({'files': ['old_module.py', 'wechat_bridge.py']}))
+        (self.root / '.runtime' / 'update' / 'manifest.json').write_text(json.dumps({'files': ['old_module.py', 'app/wechat_bridge.py']}))
         result = updater.apply(self.root, prepared['staging'], restart=False)
         self.assertTrue(result['ok']); self.assertEqual((result['from'], result['to']), ('1.0.0', '1.2.0'))
-        self.assertEqual((self.root / 'wechat_bridge.py').read_text(), 'new bridge')
+        self.assertEqual((self.root / 'app' / 'wechat_bridge.py').read_text(), 'new bridge')
         self.assertEqual((self.root / 'docs' / 'new.md').read_text(), 'new doc')
         self.assertFalse((self.root / 'old_module.py').exists())                 # removed: listed in the old manifest
         self.assertEqual((self.root / 'local_note.txt').read_text(), 'not ours')  # unknown file: kept
         self.assertEqual((self.root / 'BOT_MEMORY.md').read_text(), 'my memory')
         self.assertIn('"repo"', (self.root / 'config.json').read_text())
         self.assertTrue((self.root / '.runtime' / 'tasks.sqlite').exists())
-        self.assertEqual((Path(result['backup']) / 'wechat_bridge.py').read_text(), 'old bridge')
+        self.assertEqual((Path(result['backup']) / 'app' / 'wechat_bridge.py').read_text(), 'old bridge')
         manifest = json.loads((self.root / '.runtime' / 'update' / 'manifest.json').read_text())
         self.assertIn('docs/new.md', manifest['files']); self.assertEqual(manifest['version'], '1.2.0')
         self.assertTrue(json.loads((self.root / '.runtime' / 'update' / 'result.json').read_text())['ok'])
@@ -195,10 +196,10 @@ class PrepareApplyTests(Base):
         self.assertIn('校验失败', str(caught.exception))
         with self.assertRaises(updater.UpdateError):
             updater.prepare(self.root, opener=self.github(make_zip(dict(PROGRAM, VERSION='1.1.0'))))
-        broken = dict(PROGRAM); broken.pop('tray_app.ps1')
+        broken = dict(PROGRAM); broken.pop('desktop/tray_app.ps1')
         with self.assertRaises(updater.UpdateError):
             updater.prepare(self.root, opener=self.github(make_zip(broken)))
-        self.assertEqual((self.root / 'wechat_bridge.py').read_text(), 'old bridge')
+        self.assertEqual((self.root / 'app' / 'wechat_bridge.py').read_text(), 'old bridge')
 
     def test_failure_during_copy_restores_the_previous_version(self):
         data = make_zip(PROGRAM)
@@ -213,7 +214,7 @@ class PrepareApplyTests(Base):
         with patch('updater.shutil.copy2', side_effect=flaky):
             with self.assertRaises(updater.UpdateError):
                 updater.apply(self.root, prepared['staging'], restart=False)
-        self.assertEqual((self.root / 'wechat_bridge.py').read_text(), 'old bridge')
+        self.assertEqual((self.root / 'app' / 'wechat_bridge.py').read_text(), 'old bridge')
         self.assertEqual((self.root / 'VERSION').read_text(), '1.0.0\n')
         self.assertFalse((self.root / 'docs' / 'new.md').exists())
         self.assertFalse(json.loads((self.root / '.runtime' / 'update' / 'result.json').read_text())['ok'])
@@ -225,7 +226,7 @@ class PrepareApplyTests(Base):
         prepared = updater.prepare(self.root, opener=self.github(data))
         with self.assertRaises(updater.UpdateError):
             updater.apply(self.root, prepared['staging'], wait_pids=[os.getpid()], restart=False, timeout=0.5)
-        self.assertEqual((self.root / 'wechat_bridge.py').read_text(), 'old bridge')
+        self.assertEqual((self.root / 'app' / 'wechat_bridge.py').read_text(), 'old bridge')
 
 
 if __name__ == '__main__':

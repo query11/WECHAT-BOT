@@ -36,8 +36,8 @@ New-Item -ItemType Directory -Force C:\WeChatBot\workspace\inbox | Out-Null
 手动配置时，打开 `config.json`，按实际环境填写 `workdir` 和 `inbox.dir`；示例使用上面的目录。先在终端确认 `claude --version` 可运行，并完成模型账号配置。然后扫码登录：
 
 ```powershell
-powershell -NoProfile -ExecutionPolicy Bypass -File .\start_wechat.ps1 -Login
-python wechat_bridge.py run
+powershell -NoProfile -ExecutionPolicy Bypass -File .\desktop\start_wechat.ps1 -Login
+python app\wechat_bridge.py run
 ```
 
 第一次运行时白名单为空，微信消息只会获得用户 ID 提示。将自己的 ID 加入 `allowed_user_ids`，在终端按 `Ctrl+C` 退出，再双击 **`微信助手.bat`** 启动桌面运行中心。从微信发送“开始对话”，再发送任务。
@@ -65,30 +65,22 @@ python wechat_bridge.py run
 
 ```text
 WECHAT-BOT/
-├── README.md                  # 项目入口
-├── LICENSE / DISCLAIMER.md     # MIT 许可证与使用说明、免责声明
-├── config.example.json        # 通用配置示例，无登录凭据
-├── BOT_MEMORY.example.md      # 固定记忆示例
-├── requirements.txt           # 登录二维码依赖
-├── 微信助手.bat               # 桌面入口
-├── start_wechat.ps1            # 登录、检查、前台启动
-├── setup_wizard.ps1           # 首次使用引导
-├── python_runtime.ps1         # 选择内置或系统 Python
-├── uninstall.ps1              # 停止、移除自启动，可选删除个人数据
-├── wechat_bridge.py            # 消息路由、调度和命令行入口
-├── bridge_*.py                # 按功能拆分的消息处理层
-├── claude_runner.py           # Claude Code 执行器
-├── deepseek_runner.py         # DeepSeek 兼容后端
-├── task_*.py / desktop_*.py    # 任务数据、产物和桌面工作流
-├── tray_app.ps1 / *_ui.ps1     # WinForms 运行中心和操作窗口
-├── tests/                     # 测试与模拟服务
-├── selftest.py                # 保留的离线链路测试入口
+├── 微信助手.bat               # 双击启动（首次运行进入使用引导）
+├── app/                       # 后台程序（Python）：微信连接、消息路由、任务、模型后端
+├── desktop/                   # Windows 桌面端（PowerShell）：托盘、各窗口、启动/开关/卸载脚本、图标
+├── tests/                     # 离线测试与模拟服务（tests/selftest.py 为旧版链路自测入口）
 ├── tools/                     # 验证、配置维护及开发工具
 ├── docs/                      # 使用、架构、功能和验收文档
-└── .github/workflows/         # Windows 自动回归
+├── .github/workflows/         # Windows 自动回归与发布
+├── config.example.json        # 通用配置示例，无登录凭据
+├── BOT_MEMORY.example.md      # 固定记忆示例
+├── VERSION / requirements.txt # 版本号与 Python 依赖
+└── LICENSE / DISCLAIMER.md    # MIT 许可证与使用说明、免责声明
 ```
 
-运行模块继续采用根目录导入，便于既有快捷方式、自启动脚本与本机配置使用。模块职责和数据流见[架构说明](docs/ARCHITECTURE.md)，完整阅读入口见[文档索引](docs/README.md)。
+运行后生成的 `config.json`、`BOT_MEMORY.md`、`.runtime/` 和日志都保存在项目根目录（安装版即安装目录），不提交 Git。
+
+`app/` 中的模块按原名互相导入（`import wechat_bridge`），由 `desktop/` 的脚本以 `python app\xxx.py` 启动。模块职责和数据流见[架构说明](docs/ARCHITECTURE.md)，完整阅读入口见[文档索引](docs/README.md)。
 
 ## 验证与开发
 

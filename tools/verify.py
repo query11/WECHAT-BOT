@@ -14,7 +14,7 @@
 2. 套件表是显式登记，不做"扫描 selftest*.py 然后全跑"。清单本身也有防漂移检查：
    快速子集的模块清单必须与 ``tools/pre-commit.ps1`` 里那份逐字一致。
 3. 计数取**真实结果对象或机器可读输出**：unittest 走子进程里的 ``TestResult``，
-   旧入口 ``selftest.py`` 走它自己写出的 JSON 摘要（环境变量 SELFTEST_REPORT_JSON）。
+   旧入口 ``tests/selftest.py`` 走它自己写出的 JSON 摘要（环境变量 SELFTEST_REPORT_JSON）。
    不去正则匹配中文终端文本，也不因为出现"OK"就判定整体通过。
 4. 旧入口记的是**检查条目数**，unittest 记的是**测试用例数**，两者单位不同，
    报告里分开写、不相加、不冒充一个"总测试数"。
@@ -57,7 +57,7 @@ FAST_MODULES = (
 )
 
 # 验证入口的测试会真跑 quick，因此只登记到 offline，不能放进 quick 造成递归。
-# 新增 tests/selftest_*.py 必须登记到某个套件（或由 selftest.py 导入），
+# 新增 tests/selftest_*.py 必须登记到某个套件（或由 tests/selftest.py 导入），
 # 否则 unregistered_test_modules() 会让 tests.selftest_verify 失败。
 OFFLINE_ONLY_MODULES = (
     'tests.selftest_identity',
@@ -121,14 +121,14 @@ SUITES = {
         'runs': ({'id': 'fast', 'kind': 'cases', 'modules': FAST_MODULES},),
     },
     'offline': {
-        'description': '离线回归：旧入口 selftest.py 的全部检查、快速子集，'
+        'description': '离线回归：旧入口 tests/selftest.py 的全部检查、快速子集，'
                        '以及代码身份、验证入口、取消、附件反馈、接收确认、文字补发和历史读取专项；各项分别记录。'
                        '单位不同（检查条目数 vs 测试用例数）。',
         'requirements': '离线、不需要真实 config.json 或 .runtime（测试自建模拟服务、'
                         '合成数据和临时目录）；约 4 分钟。**不覆盖手机实机行为**——'
                         '收发、附件、取消、提醒这些仍要按 实机验收.md 在手机上验收。',
         'runs': (
-            {'id': 'selftest-checks', 'kind': 'checks', 'script': 'selftest.py'},
+            {'id': 'selftest-checks', 'kind': 'checks', 'script': 'tests/selftest.py'},
             {'id': 'fast', 'kind': 'cases', 'modules': FAST_MODULES},
             {'id': 'offline-only', 'kind': 'cases', 'modules': OFFLINE_ONLY_MODULES},
         ),
@@ -173,7 +173,7 @@ def fast_modules_drift(root=ROOT):
 
 
 def unregistered_test_modules(root=ROOT):
-    """tests/selftest_*.py 中既未登记到任何套件、也未被 selftest.py 导入的模块。"""
+    """tests/selftest_*.py 中既未登记到任何套件、也未被 tests/selftest.py 导入的模块。"""
     root = Path(root)
     registered = set()
     for suite in SUITES.values():
@@ -181,7 +181,7 @@ def unregistered_test_modules(root=ROOT):
             for name in run.get('modules', ()):
                 registered.add('.'.join(name.split('.')[:2]))
     try:
-        legacy = (root / 'selftest.py').read_text(encoding='utf-8', errors='replace')
+        legacy = (root / 'tests' / 'selftest.py').read_text(encoding='utf-8', errors='replace')
     except OSError:
         legacy = ''
     registered.update(re.findall(r'^from (tests\.selftest_\w+) import', legacy, re.M))

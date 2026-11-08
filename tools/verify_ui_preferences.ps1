@@ -2,7 +2,7 @@ param([string]$Output)
 $ErrorActionPreference='Stop'
 Add-Type -AssemblyName System.Windows.Forms
 Add-Type -AssemblyName System.Drawing
-. (Join-Path $PSScriptRoot '..\ui_preferences.ps1')
+. (Join-Path $PSScriptRoot '..\desktop\ui_preferences.ps1')
 $fixtureRoot=Join-Path ([IO.Path]::GetTempPath()) ('ui-preferences-'+[Guid]::NewGuid().ToString('N'))
 $path=Join-Path $fixtureRoot '.runtime\ui-preferences\bounds.json'
 [IO.Directory]::CreateDirectory([IO.Path]::GetDirectoryName($path))|Out-Null

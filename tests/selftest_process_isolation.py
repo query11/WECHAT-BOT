@@ -141,7 +141,7 @@ while($true){Start-Sleep -Milliseconds 100}
         self.check(self.kernel.SetInformationJobObject(self.job, 9, ctypes.byref(limits), ctypes.sizeof(limits)))
         args = [POWERSHELL, '-NoProfile', apartment, '-ExecutionPolicy', 'Bypass',
                 '-File', str(self.directory / 'owner.ps1'), '-Fixture', str(self.directory),
-                '-Source', str(ROOT), '-Python', sys.executable]
+                '-Source', str(ROOT / 'desktop'), '-Python', sys.executable]
         if not allow_breakaway:
             args.append('-Denied')
         command = ctypes.create_unicode_buffer(subprocess.list2cmdline(args))
@@ -281,7 +281,7 @@ class BootstrapRequestTests(unittest.TestCase):
         self.launch.mkdir(parents=True, exist_ok=True)
         self.temporary_paths = []
         self.addCleanup(self.cleanup_paths)
-        self.script = ROOT / 'process_bootstrap.ps1'
+        self.script = ROOT / 'desktop' / 'process_bootstrap.ps1'
 
     def cleanup_paths(self):
         for path in self.temporary_paths:
