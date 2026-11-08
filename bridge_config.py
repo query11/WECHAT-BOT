@@ -239,6 +239,24 @@ def save_config(cfg, path=CONFIG_PATH):
     _write_credential_config(path, disk, token, original)
 
 
+def add_allowed_user(uid, path=CONFIG_PATH):
+    """Appends one WeChat user to allowed_user_ids, keeping every other field as written.
+
+    Used by desktop pairing (pairing.py). The write goes through the same verified,
+    atomic path as the credentials, so a concurrent edit is refused rather than lost.
+    """
+    uid = str(uid or "").strip()
+    if not uid:
+        raise ValueError("empty user id")
+    original, disk = _read_config_document(path)
+    users = [str(x).strip() for x in (disk.get("allowed_user_ids") or []) if str(x).strip()]
+    if uid not in users:
+        users.append(uid)
+    disk["allowed_user_ids"] = users
+    _write_credential_config(path, disk, read_bot_token(disk.get("bot_token")), original)
+    return users
+
+
 def secure_bot_token(path=CONFIG_PATH):
     """把盘上明文的 bot_token 换成 DPAPI 密文；已经加密就什么都不做。
 

@@ -372,7 +372,7 @@ def test_scripts_are_ascii_and_read_utf8():
     for name in names:
         with open(os.path.join(here, name), "rb") as fh:
             raw = fh.read()
-        if name in ("tray_app.ps1", "memory_editor.ps1", "backend_editor.ps1", "app_settings.ps1", "task_history.ps1", "template_editor.ps1", "workflow_window.ps1", "workbench_layout.ps1", "result_revision_ui.ps1", "desktop_files_ui.ps1", "schedule_ui.ps1"):
+        if name in ("tray_app.ps1", "memory_editor.ps1", "backend_editor.ps1", "app_settings.ps1", "task_history.ps1", "template_editor.ps1", "workflow_window.ps1", "workbench_layout.ps1", "result_revision_ui.ps1", "desktop_files_ui.ps1", "schedule_ui.ps1", "setup_wizard.ps1", "update_window.ps1"):
             # 中文界面使用 BOM，让 Windows PowerShell 5.1 明确按 UTF-8 解码。
             check("托盘界面带 UTF-8 BOM", raw.startswith(b"\xef\xbb\xbf"))
             text = raw.decode("utf-8-sig")

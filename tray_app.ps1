@@ -19,6 +19,7 @@ Add-Type -Path (Join-Path $PSScriptRoot 'tray_theme.cs') -ReferencedAssemblies S
 [TrayDesign]::EnableDpi()
 [System.Windows.Forms.Application]::EnableVisualStyles()
 $root = if($PreferenceProbe){$PreferenceRoot}else{Split-Path -Parent $MyInvocation.MyCommand.Path}
+$appVersion=try{([IO.File]::ReadAllText((Join-Path $root 'VERSION'))).Trim()}catch{''}
 $runtime = Join-Path $root '.runtime'
 [IO.Directory]::CreateDirectory($runtime) | Out-Null
 $mutex = New-Object Threading.Mutex($false, 'Local.WeChatAssistantTray')
@@ -48,7 +49,7 @@ function Report-UtilityFailure($label,$message) {
         [IO.File]::AppendAllText((Join-Path $runtime 'ui-launch-error.log'),
             ([DateTime]::Now.ToString('yyyy-MM-dd HH:mm:ss')+' '+$label+' '+$message+"`r`n"),[Text.Encoding]::UTF8)
     } catch {}
-    if(-not $form.Visible){$tray.ShowBalloonTip(4000,'微信助手',$hint.Text,[Windows.Forms.ToolTipIcon]::Error)}
+    if(-not $form.Visible){$script:balloonIsUpdate=$false;$tray.ShowBalloonTip(4000,'微信助手',$hint.Text,[Windows.Forms.ToolTipIcon]::Error)}
 }
 function Open-UtilityWindow($file,$label,$extraArguments='') {
     try {
@@ -149,10 +150,13 @@ $brand.SizeMode='Zoom';$brand.Image=[TrayDesign]::Symbol([TrayDesign]::BrandBlue
 $title=Label '微信助手' 80 16 350 32 16
 # 16pt keeps the brand below the 18pt assistant state, which is the main reading point.
 $title.Font=New-Object Drawing.Font('Microsoft YaHei UI',16,[Drawing.FontStyle]::Bold);$title.ForeColor=[TrayDesign]::Heading
-$subtitle=Label '运行中心 · 让微信连接你的电脑' 80 48 430 24 10.5
+$subtitle=Label ('运行中心 · 让微信连接你的电脑'+$(if($appVersion){' · v'+$appVersion}else{''})) 80 48 430 24 10.5
 $subtitle.ForeColor=$muted
 $connectionBadge=New-Object TrayBadge;$connectionBadge.Text='正在连接微信'
 $connectionBadge.SetBounds(752,32,184,32);$form.Controls.Add($connectionBadge)
+$updateButton=New-Object TrayButton;$updateButton.Text='新版本';$updateButton.Primary=$true;$updateButton.Quiet=$true;$updateButton.IconKind='upgrade'
+$updateButton.Font=New-Object Drawing.Font('Microsoft YaHei UI',9.75);$updateButton.SetBounds(600,32,140,32);$updateButton.Visible=$false;$form.Controls.Add($updateButton)
+$updateButton.Add_Click({Open-UpdateWindow})
 $statusCard=Card 24 104 536 232
 $eyebrow=Label '助手状态' 24 24 210 24 10.5 $statusCard;$eyebrow.ForeColor=$muted
 $backendTip=New-Object Windows.Forms.ToolTip
@@ -454,6 +458,7 @@ $menuHeader=New-Object Windows.Forms.ToolStripLabel('正在连接微信')
 $menuHeader.Font=New-Object Drawing.Font('Microsoft YaHei UI',10,[Drawing.FontStyle]::Bold);$null=$menu.Items.Add($menuHeader)
 Add-MenuSeparator $menu.Items
 $openMenu=Add-MenuItem $menu.Items '打开运行中心' '' { $form.Show(); $form.WindowState='Normal'; $form.Activate() }
+$updateMenu=Add-MenuItem $menu.Items '更新到新版本…' 'upgrade' {Open-UpdateWindow};$updateMenu.Available=$false
 $openMenu.Font=New-Object Drawing.Font($menu.Font,[Drawing.FontStyle]::Bold);$openMenu.Image=[TrayDesign]::Symbol([TrayDesign]::BrandBlue,64,'standby')
 $wakeMenu=Add-MenuItem $menu.Items '唤醒助手' 'send' { Send-Control 'wake' }
 $standbyMenu=Add-MenuItem $menu.Items '进入待机' 'power' { Send-Control 'standby' }
@@ -473,6 +478,9 @@ Add-MenuSeparator $settingsMenu.DropDownItems
 $null=Add-MenuItem $settingsMenu.DropDownItems '任务模板' 'log' {Open-UtilityWindow 'template_editor.ps1' '任务模板'}
 $null=Add-MenuItem $settingsMenu.DropDownItems '常用应用' 'apps' {Open-UtilityWindow 'app_settings.ps1' '常用应用'}
 $null=Add-MenuItem $settingsMenu.DropDownItems '固定记忆' 'bookmark' {Open-UtilityWindow 'memory_editor.ps1' '固定记忆'}
+Add-MenuSeparator $settingsMenu.DropDownItems
+$null=Add-MenuItem $settingsMenu.DropDownItems '检查更新' 'upgrade' {Open-UpdateWindow $true}
+$null=Add-MenuItem $settingsMenu.DropDownItems '使用引导' 'chat' {Open-UtilityWindow 'setup_wizard.ps1' '使用引导'}
 Add-MenuSeparator $menu.Items
 $restartMenu=Add-MenuItem $menu.Items '重启服务' 'restart' { Request-Restart }
 $exitMenu=Add-MenuItem $menu.Items '退出程序' 'power' { Request-Exit }
@@ -484,6 +492,7 @@ function Find-MenuItem($items,$text) {
     }
 }
 $tray.ContextMenuStrip=$menu
+$tray.Add_BalloonTipClicked({if($script:balloonIsUpdate){$script:balloonIsUpdate=$false;Open-UpdateWindow}})
 $tray.Add_DoubleClick({$form.Show();$form.WindowState='Normal';$form.Activate()})
 function Set-Indicator($key,$caption) {
     if ($script:lastState -eq $key) {return}
@@ -606,6 +615,77 @@ function Update-WorkflowPanels($s,$alive) {
         Update-ResultFileActions
     }
 }
+# --- Version updates: updater.py check in the background (first after 20 s, then every
+# 6 hours), a header button and one tray notice per new version, and the install hand-off
+# from update_window.ps1 (update-request.json): start updater.py apply, which waits for this
+# tray and the bridge to exit, replaces the program files and reopens the assistant.
+$script:updateJob=$null;$script:updateCheckedAt=[DateTimeOffset]::UtcNow.ToUnixTimeSeconds()-21600+20;$script:updateStamp=$null
+$script:updateNotified='';$script:balloonIsUpdate=$false
+try{$script:updateNotified=[IO.File]::ReadAllText((Join-Path $runtime 'update-notified.txt')).Trim()}catch{}
+function Open-UpdateWindow($force=$false){Open-UtilityWindow 'update_window.ps1' '版本更新' $(if($force){'-CheckNow'}else{''})}
+function Start-UpdateCheck {
+    if($script:updateJob -and -not $script:updateJob.HasExited){return}
+    if($script:updateJob){$script:updateJob.Dispose();$script:updateJob=$null}
+    $script:updateCheckedAt=[DateTimeOffset]::UtcNow.ToUnixTimeSeconds()
+    try{
+        $start=New-Object Diagnostics.ProcessStartInfo;$start.FileName='python'
+        $start.Arguments='"'+(Join-Path $root 'updater.py')+'" check --root "'+$root.TrimEnd('\')+'"'
+        $start.UseShellExecute=$false;$start.CreateNoWindow=$true;$start.WorkingDirectory=$root
+        $script:updateJob=[Diagnostics.Process]::Start($start)
+    }catch{$script:updateJob=$null}
+}
+function Start-UpdateInstall($requestPath) {
+    try{$request=Get-Content -LiteralPath $requestPath -Raw -Encoding UTF8|ConvertFrom-Json}catch{$request=$null}
+    Remove-Item -LiteralPath $requestPath -ErrorAction SilentlyContinue
+    if(-not $request -or -not $request.staging){return}
+    $s=$script:snapshot;$alive=$s -and $s.pid -gt 0 -and (Get-Process -Id $s.pid -ErrorAction SilentlyContinue)
+    if($alive -and ((Has-ActiveTask $s) -or $s.queued -gt 0 -or $s.downloads -gt 0)){Set-Feedback '有任务或附件正在处理，完成后再安装更新。' 'error';return}
+    if($script:pending){Set-Feedback '上一项操作尚未完成，请稍后再安装更新。' 'error';return}
+    $arguments='"'+(Join-Path $root 'updater.py')+'" apply --root "'+$root.TrimEnd('\')+'" --staging "'+[string]$request.staging+'" --wait-pid '+$PID
+    if($alive){$arguments+=' --wait-pid '+$s.pid}
+    try{
+        $start=New-Object Diagnostics.ProcessStartInfo;$start.FileName='python';$start.Arguments=$arguments
+        $start.UseShellExecute=$false;$start.CreateNoWindow=$true;$start.WorkingDirectory=$env:TEMP
+        $installer=[Diagnostics.Process]::Start($start);$installer.Dispose()
+    }catch{Set-Feedback '无法启动安装程序，请稍后重试。' 'error';return}
+    Set-Feedback ('正在安装 '+[string]$request.version+'，完成后会自动重新打开。')
+    $script:balloonIsUpdate=$false;$tray.ShowBalloonTip(4000,'微信助手正在更新','安装完成后会自动重新打开。',[Windows.Forms.ToolTipIcon]::Info)
+    if($alive){$script:mode='exit';Send-Control 'shutdown'}else{$script:closing=$true;$form.Close()}
+}
+function Refresh-Update {
+    if([DateTimeOffset]::UtcNow.ToUnixTimeSeconds()-$script:updateCheckedAt -gt 21600){Start-UpdateCheck}
+    $path=Join-Path $runtime 'update.json'
+    $stamp=if(Test-Path -LiteralPath $path){[IO.File]::GetLastWriteTimeUtc($path).Ticks}else{0}
+    if($stamp -ne $script:updateStamp){
+        $script:updateStamp=$stamp
+        $u=if($stamp){try{Get-Content -LiteralPath $path -Raw -Encoding UTF8|ConvertFrom-Json}catch{$null}}else{$null}
+        $show=[bool]($u -and $u.available -and $u.latest -and -not $u.skipped -and -not $u.disabled)
+        $updateButton.Visible=$show;$updateMenu.Available=$show
+        if($show){
+            $updateButton.Text='新版本 '+[string]$u.latest;$updateMenu.Text='更新到 '+[string]$u.latest+'…'
+            $backendTip.SetToolTip($updateButton,'查看更新内容并一键更新')
+            if($script:updateNotified -ne [string]$u.latest){
+                $script:updateNotified=[string]$u.latest
+                try{[IO.File]::WriteAllText((Join-Path $runtime 'update-notified.txt'),$script:updateNotified)}catch{}
+                $script:balloonIsUpdate=$true
+                $tray.ShowBalloonTip(6000,'微信助手有新版本',('发现 '+[string]$u.latest+'，点击查看更新内容。'),[Windows.Forms.ToolTipIcon]::Info)
+            }
+        }
+    }
+    $request=Join-Path $runtime 'update-request.json'
+    if(Test-Path -LiteralPath $request){Start-UpdateInstall $request}
+}
+function Show-UpdateResult {
+    $path=Join-Path $runtime 'update\result.json'
+    if(-not (Test-Path -LiteralPath $path)){return}
+    try{
+        $r=Get-Content -LiteralPath $path -Raw -Encoding UTF8|ConvertFrom-Json
+        if([DateTimeOffset]::UtcNow.ToUnixTimeSeconds()-[double]$r.at -lt 900){
+            if($r.ok){Set-Feedback ('已更新到 v'+[string]$r.to) 'success'}else{Set-Feedback ('更新未完成，仍在使用 v'+[string]$r.from+'：'+[string]$r.message) 'error'}
+        }
+    }catch{}
+    Remove-Item -LiteralPath $path -ErrorAction SilentlyContinue
+}
 function Refresh-State {
   if($PreferenceProbe -or $Preview -or $VerifyWindows -or $VerifyUX){return}
   try {
@@ -627,6 +707,7 @@ function Refresh-State {
       }elseif($now-$script:pendingAt -gt 25){Set-Feedback '后台未确认操作，请检查状态和日志' 'error';$script:pending=$null;$script:mode=''}
     }
     Refresh-Backend $s $alive;Refresh-Actions $s $alive
+    Refresh-Update
     if($script:mode -and -not $script:pending -and -not $alive){
       $next=$script:mode;$script:mode=''
       if($next -eq 'restart'){Start-ServiceProcess}else{$script:closing=$true;$form.Close()}
@@ -961,6 +1042,7 @@ if($VerifyWindows){
  }
  $script:closing=$true;$form.Close()
 }else{
+ Show-UpdateResult
  if($Show){$form.Show()}else{$form.Add_Shown({$form.Hide()})}
  [Windows.Forms.Application]::Run($form)
 }

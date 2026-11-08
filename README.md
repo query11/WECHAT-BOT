@@ -31,7 +31,9 @@ Copy-Item BOT_MEMORY.example.md BOT_MEMORY.md
 New-Item -ItemType Directory -Force C:\WeChatBot\workspace\inbox | Out-Null
 ```
 
-打开 `config.json`，按实际环境填写 `workdir` 和 `inbox.dir`；示例使用上面的目录。先在终端确认 `claude --version` 可运行，并完成模型账号配置。然后扫码登录：
+**更简单的方式**：完成上面的 `git clone` 与依赖安装后，直接双击 `微信助手.bat`，首次运行会进入“使用引导”，按步骤完成目录、模型、扫码登录和微信绑定（发送一次性绑定码即可加入白名单）。
+
+手动配置时，打开 `config.json`，按实际环境填写 `workdir` 和 `inbox.dir`；示例使用上面的目录。先在终端确认 `claude --version` 可运行，并完成模型账号配置。然后扫码登录：
 
 ```powershell
 powershell -NoProfile -ExecutionPolicy Bypass -File .\start_wechat.ps1 -Login
@@ -40,7 +42,7 @@ python wechat_bridge.py run
 
 第一次运行时白名单为空，微信消息只会获得用户 ID 提示。将自己的 ID 加入 `allowed_user_ids`，在终端按 `Ctrl+C` 退出，再双击 **`微信助手.bat`** 启动桌面运行中心。从微信发送“开始对话”，再发送任务。
 
-完整配置、模型切换和登录自启动见 **[快速开始](docs/QUICKSTART.md)**；已有安装请先阅读[更新说明](docs/QUICKSTART.md#已有安装如何更新)。
+完整配置、模型切换和登录自启动见 **[快速开始](docs/QUICKSTART.md)**。新版本在 GitHub 发布后，运行中心会提示并支持一键更新，见[发布与更新](docs/reference/发布与更新.md)。
 
 ## 常用指令
 
@@ -55,6 +57,7 @@ python wechat_bridge.py run
 | `/artifacts latest` | 查看最近已结束任务的产物 |
 | `/getfile latest all` | 请求发送最近任务的全部可发送产物 |
 | `开始收集附件` | 建立多附件批次，发齐后核对并确认执行 |
+| `/version` | 查看当前版本与是否有新版本 |
 
 更多指令和适用条件见[使用速查](docs/reference/使用速查.md)。
 

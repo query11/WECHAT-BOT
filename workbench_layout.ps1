@@ -18,7 +18,7 @@ function Layout-RunCenter {
         $entryHeight=switch($rows){3{112+3*$tileHeight};2{104+2*$tileHeight};default{124}};$modelHeight=$cards-$entryHeight-$maintenanceHeight
         $form.SuspendLayout()
         Ui-Bounds $brand 24 16 40 40;Ui-Bounds $title 80 8 350 32
-        Ui-Bounds $subtitle 80 40 ($w-312) 24;Ui-Bounds $connectionBadge ($w-208) 24 184 32
+        Ui-Bounds $subtitle 80 40 ($w-460) 24;Ui-Bounds $connectionBadge ($w-208) 24 184 32;Ui-Bounds $updateButton ($w-356) 24 140 32
         Ui-Bounds $statusCard 24 80 ($w-48) 88
         Ui-Bounds $stateDot 16 22 12 12;Ui-Bounds $state 40 8 224 36
         Ui-Bounds $serviceGuide 280 8 ($w-528) 36

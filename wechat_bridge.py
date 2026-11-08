@@ -25,6 +25,8 @@ import threading
 import time
 
 import app_actions
+import pairing
+import updater
 import brightness
 import parse_probe
 import power
@@ -41,7 +43,7 @@ from bridge_delivery import DeliveryMixin
 from bridge_artifacts import ArtifactMixin
 from bridge_chat import ChatMixin
 from bridge_config import (CONFIG_PATH, DEFAULTS, HERE, MARK_INBOX_GUARD,
-                           allowed_set, load_config, make_console_safe,
+                           add_allowed_user, allowed_set, load_config, make_console_safe,
                            resolve_workdir, save_config)
 # allowed_roots / file_send_reason 原来也定义在本模块里，跟着 SendFileMixin 一起挪走了，
 # 这里照旧 re-export——selftest.py 里 B.file_send_reason、B.allowed_roots 不用改。
@@ -702,11 +704,14 @@ class Bridge(TemplateMixin, BatchMixin, ArtifactMixin, DeliveryMixin, ProgressMi
 
         uid, text = msg.from_user_id, (msg.text or "").strip()
 
+        if uid not in self.allowed and self._try_pairing(msg, uid, text):
+            return
         if not self.allowed:
             # 唯一的引导路径：iLink 的用户 ID 事先没法知道，只能等第一条消息告诉你
             log.warning("白名单为空，不执行任何任务。发消息的用户 ID 是：%s", uid)
             self.reply(msg, "白名单是空的，我不会执行任何东西。\n你的用户 ID：\n%s\n"
-                            "把它填进 config.json 的 allowed_user_ids，然后重启。" % uid)
+                            "在电脑上的使用引导里生成绑定码后，发送“绑定 六位数字”即可完成绑定；"
+                            "也可以把这个 ID 填进 config.json 的 allowed_user_ids 再重启。" % uid)
             return
         if uid not in self.allowed:
             log.warning("拒绝非白名单用户 %s：%s", uid, self._peek(text))
@@ -883,6 +888,28 @@ class Bridge(TemplateMixin, BatchMixin, ArtifactMixin, DeliveryMixin, ProgressMi
             return False, ""
         return True, file_send_reason(path, self.send_roots, self.send_file_max_mb)
 
+    def _try_pairing(self, msg, uid, text):
+        """Desktop binding code (pairing.py): True when the message was a binding attempt."""
+        outcome = pairing.claim(HERE, text, uid)
+        if outcome is None:
+            return False
+        if outcome == "wrong":
+            log.warning("绑定码不正确 user=%s", uid)
+            if not self.allowed:
+                self.reply(msg, "❌ 绑定码不对或已过期，请看电脑上使用引导里显示的最新绑定码。")
+            return True
+        try:
+            users = add_allowed_user(uid, CONFIG_PATH)
+        except (OSError, ValueError, SystemExit) as exc:
+            log.error("绑定后写入白名单失败：%s", exc)
+            self.reply(msg, "❌ 绑定码正确，但保存白名单失败；请在电脑上重试，或手动填写 allowed_user_ids。")
+            return True
+        self.cfg["allowed_user_ids"] = users
+        self.allowed = allowed_set(self.cfg)
+        log.info("已通过绑定码加入白名单 user=%s", uid)
+        self.reply(msg, "✅ 绑定成功。发送“开始对话”就可以开始使用，发送 /help 查看能做什么。")
+        return True
+
     def _dispatch_free(self, msg, uid, body):
         """不用带 `/cc` 的那条链。返回要回的话；None = 不是这些，交给 handle() 往下走。"""
         low = body.lower()
@@ -895,6 +922,8 @@ class Bridge(TemplateMixin, BatchMixin, ArtifactMixin, DeliveryMixin, ProgressMi
             return HELP
         if low == "/id":
             return "你的用户 ID：\n%s" % uid
+        if low in ("/version", "版本", "版本号"):
+            return updater.status_text(HERE)
         if low == "/where":
             return "工作目录：%s" % self.workdir
         if low in ("/apps", "/app", "/应用", "应用列表"):

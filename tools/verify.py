@@ -109,6 +109,8 @@ OFFLINE_ONLY_MODULES = (
     'tests.selftest_transfer_cancel',
     'tests.selftest_ui_palette',
     'tests.selftest_api_profiles',
+    'tests.selftest_updater',
+    'tests.selftest_onboarding',
 )
 
 SUITES = {

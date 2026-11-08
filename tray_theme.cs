@@ -147,6 +147,8 @@ public static class TrayDesign {
             } else if(kind=="folder") {
                 g.DrawLines(pen,new[]{new PointF(3,18),new PointF(3,6),new PointF(9,6),new PointF(11,8.5f),new PointF(21,8.5f),new PointF(21,18),new PointF(3,18)});
                 g.DrawLine(pen,3,11.5f,21,11.5f);
+            } else if(kind=="upgrade") {
+                g.DrawLine(pen,12,18,12,5);g.DrawLines(pen,new[]{new PointF(7,10),new PointF(12,5),new PointF(17,10)});g.DrawLine(pen,6,21,18,21);
             } else if(kind=="plus") {
                 g.DrawLine(pen,12,5,12,19);g.DrawLine(pen,5,12,19,12);
             } else if(kind=="bookmark") {
