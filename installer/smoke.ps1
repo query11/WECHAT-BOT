@@ -66,7 +66,7 @@ try {
     Assert ($status.ok -and $status.python.ok -and $status.qr_library) 'Installed onboarding status failed'
     $reply | Set-Content -LiteralPath (Join-Path $logs 'onboarding.json') -Encoding UTF8
     Run-Exe $ps ('-NoProfile -STA -ExecutionPolicy Bypass -File "' + (Join-Path $install 'desktop\tray_app.ps1') + '" -VerifyUX')
-    $shell = New-Object -ComObject WScript.Shell
+    $shell = New-Object -ComObject Shell.Application
     $shortcuts = @()
     $linkName = [string][char]0x5FAE + [char]0x4FE1 + [char]0x52A9 + [char]0x624B + '.lnk'
     foreach ($folder in @('Programs','Desktop')) {
@@ -76,8 +76,10 @@ try {
     }
     Assert ($shortcuts.Count -eq 2) 'Start Menu and optional desktop shortcuts missing'
     foreach ($shortcut in $shortcuts) {
-        $link = $shell.CreateShortcut($shortcut.FullName)
-        @{path=$shortcut.FullName; target=$link.TargetPath; arguments=$link.Arguments; working=$link.WorkingDirectory} | ConvertTo-Json | Add-Content (Join-Path $logs 'shortcuts.json') -Encoding UTF8
+        Copy-Item -LiteralPath $shortcut.FullName -Destination (Join-Path $logs ($shortcut.Directory.Name + '.lnk'))
+        $link = $shell.NameSpace([string]$shortcut.DirectoryName).ParseName([string]$shortcut.Name).GetLink
+        @{path=$shortcut.FullName; target=$link.Path; arguments=$link.Arguments; working=$link.WorkingDirectory} | ConvertTo-Json | Add-Content (Join-Path $logs 'shortcuts.json') -Encoding UTF8
+        Assert ($link.Path -eq $ps) 'Shortcut target must be Windows PowerShell'
         Assert ($link.Arguments.IndexOf((Join-Path $install 'desktop\launch_tray.ps1'), [StringComparison]::OrdinalIgnoreCase) -ge 0) 'Shortcut arguments wrong; see shortcuts.json'
         Assert ($link.WorkingDirectory -eq $install) 'Shortcut working directory wrong'
     }
