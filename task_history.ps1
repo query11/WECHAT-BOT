@@ -11,58 +11,64 @@ Add-Type -Path (Join-Path $PSScriptRoot 'tray_theme.cs') -ReferencedAssemblies S
 [TrayDesign]::EnableDpi();[Windows.Forms.Application]::EnableVisualStyles()
 $window=New-Object Windows.Forms.Form
 $window.AutoScaleDimensions=New-Object Drawing.SizeF(96,96);$window.AutoScaleMode='Dpi'
-$window.Text='微信助手 · 任务记录';$window.ClientSize=New-Object Drawing.Size(900,760)
+$window.Text='微信助手 · 任务记录';$window.ClientSize=New-Object Drawing.Size(900,800)
 $window.MinimumSize=New-Object Drawing.Size(916,799);$window.StartPosition='CenterScreen'
 $window.Font=New-Object Drawing.Font('Microsoft YaHei UI',10)
 $window.BackColor=[TrayDesign]::PageColor
 $window.ForeColor=[TrayDesign]::Heading
 $iconPath=Join-Path $PSScriptRoot 'wechat-assistant-v2.ico'
 if(Test-Path -LiteralPath $iconPath){$window.Icon=New-Object Drawing.Icon($iconPath)}
-function Add-Label($text,$x,$y,$w,$h,$size=10){
- $l=New-Object Windows.Forms.Label;$l.Text=$text;$l.SetBounds($x,$y,$w,$h)
- $l.Font=New-Object Drawing.Font('Microsoft YaHei UI',$size);$l.AutoEllipsis=$true;$window.Controls.Add($l);return $l
+function Add-Label($text,$x,$y,$w,$h,$size=10,$parent=$window){
+ $l=New-Object Windows.Forms.Label;$l.Text=$text;$l.SetBounds($x,$y,$w,$h);$l.BackColor=[Drawing.Color]::Transparent
+ $l.Font=New-Object Drawing.Font('Microsoft YaHei UI',$size);$l.AutoEllipsis=$true;$parent.Controls.Add($l);return $l
 }
-$title=Add-Label '任务记录' 26 20 400 42 16;$title.Font=New-Object Drawing.Font('Microsoft YaHei UI',16,[Drawing.FontStyle]::Bold)
-$intro=Add-Label '最近 200 条任务 · 选择记录查看结果与关联文件' 28 70 640 28 10
+function Add-Card($x,$y,$w,$h){$c=New-Object TrayCard;$c.SetBounds($x,$y,$w,$h);$window.Controls.Add($c);return $c}
+function Add-Button($text,$x,$y,$w,$h,$parent=$window){$b=New-Object TrayButton;$b.Text=$text;$b.SetBounds($x,$y,$w,$h);$parent.Controls.Add($b);return $b}
+# Header with window actions; a task list card; a result card with summary, outputs and detail tabs;
+# the selected task's operation row along the bottom.
+$title=Add-Label '任务记录' 28 18 400 40 16;$title.Font=New-Object Drawing.Font('Microsoft YaHei UI',16,[Drawing.FontStyle]::Bold)
+$intro=Add-Label '最近 200 条任务 · 选择记录查看结果与关联文件' 28 58 840 26 10
 $intro.ForeColor=[TrayDesign]::MutedColor
 $sourceTip=New-Object Windows.Forms.ToolTip
 $script:historyEmpty='暂无任务记录。'
 $script:focusPending=[bool]$FocusId
-$refresh=New-Object TrayButton;$refresh.Text='刷新';$refresh.SetBounds(758,28,116,36);$refresh.Anchor='Top,Right';$window.Controls.Add($refresh)
+$revise=Add-Button '继续修改' 444 22 136 34;$revise.Anchor='Top,Right';$revise.Enabled=$false
+$templatesButton=Add-Button '任务模板' 592 22 136 34;$templatesButton.Anchor='Top,Right'
+$refresh=Add-Button '刷新' 740 22 136 34;$refresh.Anchor='Top,Right';$refresh.IconKind='restart'
+$listCard=Add-Card 24 96 852 232;$listCard.Anchor='Top,Left,Right'
+$searchLabel=Add-Label '搜索' 16 12 44 34 10 $listCard;$searchLabel.ForeColor=[TrayDesign]::MutedColor;$searchLabel.TextAlign='MiddleLeft'
+$search=New-Object Windows.Forms.TextBox;$search.SetBounds(64,12,520,34);$search.Anchor='Top,Left,Right';$listCard.Controls.Add($search)
+$filter=New-Object Windows.Forms.ComboBox;$filter.DropDownStyle='DropDownList';$filter.SetBounds(600,14,236,30);$filter.Anchor='Top,Right'
+$filter.Items.AddRange(@('全部任务','需要处理','等待执行','正在处理','已结束'));$filter.SelectedIndex=0;$listCard.Controls.Add($filter)
 $list=New-Object Windows.Forms.ListView
 $list.View='Details';$list.FullRowSelect=$true;$list.MultiSelect=$false;$list.HideSelection=$false
-$list.SetBounds(28,148,846,160);$list.Anchor='Top,Left,Right';$list.BorderStyle='FixedSingle'
+$list.SetBounds(16,56,820,160);$list.Anchor='Top,Left,Right'
 $null=$list.Columns.Add('更新时间',172);$null=$list.Columns.Add('状态',174);$null=$list.Columns.Add('任务',390)
-$window.Controls.Add($list)
-$searchLabel=Add-Label '搜索' 28 110 52 28 10
-$search=New-Object Windows.Forms.TextBox;$search.SetBounds(80,106,512,30);$search.Anchor='Top,Left,Right';$window.Controls.Add($search)
-$filter=New-Object Windows.Forms.ComboBox;$filter.DropDownStyle='DropDownList';$filter.SetBounds(608,106,266,30);$filter.Anchor='Top,Right'
-$filter.Items.AddRange(@('全部任务','需要处理','等待执行','正在处理','已结束'));$filter.SelectedIndex=0;$window.Controls.Add($filter)
+$listCard.Controls.Add($list)
 function Size-HistoryColumns { if(Set-RememberedColumns $list){return}; $width=$list.ClientSize.Width-24;$list.Columns[0].Width=[int]($width*.25);$list.Columns[1].Width=[int]($width*.25);$list.Columns[2].Width=[Math]::Max(100,$width-$list.Columns[0].Width-$list.Columns[1].Width) }
 $list.Add_SizeChanged({Size-HistoryColumns});$window.Add_Shown({Size-HistoryColumns})
-$heading=Add-Label '结果摘要' 28 320 640 26 11;$heading.Font=New-Object Drawing.Font('Microsoft YaHei UI',11,[Drawing.FontStyle]::Bold)
-$summaryState=Add-Label '' 28 350 846 24 9;$summaryState.Anchor='Top,Left,Right';$summaryState.ForeColor=[TrayDesign]::MutedColor
+$detailCard=Add-Card 24 340 852 348;$detailCard.Anchor='Top,Bottom,Left,Right'
+$heading=Add-Label '结果摘要' 16 12 400 28 12 $detailCard;$heading.Font=New-Object Drawing.Font('Microsoft YaHei UI',12,[Drawing.FontStyle]::Bold)
+$saveTemplate=Add-Button '保存为模板' 676 10 160 32 $detailCard;$saveTemplate.Anchor='Top,Right';$saveTemplate.Enabled=$false
+$summaryState=Add-Label '' 16 42 820 22 9 $detailCard;$summaryState.Anchor='Top,Left,Right';$summaryState.ForeColor=[TrayDesign]::MutedColor
 $details=New-Object Windows.Forms.TextBox;$details.Multiline=$true;$details.ReadOnly=$true;$details.ScrollBars='Vertical'
-$details.SetBounds(28,378,846,48);$details.Anchor='Top,Left,Right';$window.Controls.Add($details)
+$details.SetBounds(16,68,820,52);$details.Anchor='Top,Left,Right';$detailCard.Controls.Add($details)
 $outputList=New-Object Windows.Forms.ListView;$outputList.View='Details';$outputList.FullRowSelect=$true;$outputList.MultiSelect=$false;$outputList.HideSelection=$false
-$outputList.SetBounds(28,438,650,74);$outputList.Anchor='Top,Left,Right';$null=$outputList.Columns.Add('产物文件',300);$null=$outputList.Columns.Add('检查 / 记录',310);$window.Controls.Add($outputList)
+$outputList.SetBounds(16,130,640,76);$outputList.Anchor='Top,Left,Right';$null=$outputList.Columns.Add('产物文件',300);$null=$outputList.Columns.Add('检查 / 记录',310);$detailCard.Controls.Add($outputList)
 $outputList.Add_SizeChanged({if(Set-RememberedColumns $outputList){return};$width=$outputList.ClientSize.Width-24;$outputList.Columns[0].Width=[int]($width*.48);$outputList.Columns[1].Width=[Math]::Max(80,$width-$outputList.Columns[0].Width)})
-$locate=New-Object TrayButton;$locate.Text='打开文件位置';$locate.SetBounds(694,438,180,36);$locate.Anchor='Top,Right';$locate.Enabled=$false;$window.Controls.Add($locate)
-$outputHint=Add-Label '选择文件可定位' 694 478 180 30 9;$outputHint.Anchor='Top,Right';$outputHint.ForeColor=[TrayDesign]::MutedColor
-$tabs=New-Object Windows.Forms.TabControl;$tabs.SetBounds(28,526,846,126);$tabs.Anchor='Top,Bottom,Left,Right';$window.Controls.Add($tabs)
-$actionHint=Add-Label '选择任务和操作后可查看下一步。' 28 658 846 26 9;$actionHint.Anchor='Bottom,Left,Right';$actionHint.ForeColor=[TrayDesign]::MutedColor
+$locate=Add-Button '打开文件位置' 672 130 164 34 $detailCard;$locate.Anchor='Top,Right';$locate.Enabled=$false;$locate.IconKind='folder'
+$outputHint=Add-Label '选择文件可定位' 672 170 164 30 9 $detailCard;$outputHint.Anchor='Top,Right';$outputHint.ForeColor=[TrayDesign]::MutedColor
+$tabs=New-Object TrayTabs;$tabs.SetBounds(16,216,820,116);$tabs.Anchor='Top,Bottom,Left,Right';$detailCard.Controls.Add($tabs)
+$actionHint=Add-Label '选择任务和操作后可查看下一步。' 28 700 848 24 9;$actionHint.Anchor='Bottom,Left,Right';$actionHint.ForeColor=[TrayDesign]::MutedColor
 function Detail-Tab($name){
- $page=New-Object Windows.Forms.TabPage;$page.Text=$name;$page.Padding=New-Object Windows.Forms.Padding(8);$null=$tabs.TabPages.Add($page)
+ $page=New-Object Windows.Forms.TabPage;$page.Text=$name;$page.BackColor=[Drawing.Color]::White;$page.Padding=New-Object Windows.Forms.Padding(10);$null=$tabs.TabPages.Add($page)
  $box=New-Object Windows.Forms.TextBox;$box.Multiline=$true;$box.ReadOnly=$true;$box.ScrollBars='Vertical';$box.Dock='Fill';$page.Controls.Add($box);return $box
 }
 $replyDetails=Detail-Tab '完整回复';$inputDetails=Detail-Tab '输入与模板';$checkDetails=Detail-Tab '检查结果'
-$status=Add-Label '' 28 736 846 22 9;$status.Anchor='Bottom,Left,Right';$status.ForeColor=[TrayDesign]::MutedColor
-$operationChoice=New-Object Windows.Forms.ComboBox;$operationChoice.DropDownStyle='DropDownList';$operationChoice.SetBounds(28,692,470,32);$operationChoice.Anchor='Bottom,Left,Right';$operationChoice.Enabled=$false;$window.Controls.Add($operationChoice)
-$copy=New-Object TrayButton;$copy.Text='复制微信指令';$copy.SetBounds(514,692,164,36);$copy.Anchor='Bottom,Right';$copy.Enabled=$false;$window.Controls.Add($copy)
-$execute=New-Object TrayButton;$execute.Text='选择操作';$execute.Primary=$true;$execute.SetBounds(694,692,180,36);$execute.Anchor='Bottom,Right';$execute.Enabled=$false;$window.Controls.Add($execute)
-$templatesButton=New-Object TrayButton;$templatesButton.Text='任务模板';$templatesButton.SetBounds(606,28,136,36);$templatesButton.Anchor='Top,Right';$window.Controls.Add($templatesButton)
-$revise=New-Object TrayButton;$revise.Text='继续修改';$revise.SetBounds(454,28,136,36);$revise.Anchor='Top,Right';$revise.Enabled=$false;$window.Controls.Add($revise)
-$saveTemplate=New-Object TrayButton;$saveTemplate.Text='保存为模板';$saveTemplate.SetBounds(694,316,180,32);$saveTemplate.Anchor='Top,Right';$saveTemplate.Enabled=$false;$window.Controls.Add($saveTemplate)
+$status=Add-Label '' 28 770 848 22 9;$status.Anchor='Bottom,Left,Right';$status.ForeColor=[TrayDesign]::MutedColor
+$operationChoice=New-Object Windows.Forms.ComboBox;$operationChoice.DropDownStyle='DropDownList';$operationChoice.SetBounds(28,732,470,32);$operationChoice.Anchor='Bottom,Left,Right';$operationChoice.Enabled=$false;$window.Controls.Add($operationChoice)
+$copy=Add-Button '复制微信指令' 512 728 164 36;$copy.Anchor='Bottom,Right';$copy.Enabled=$false
+$execute=Add-Button '选择操作' 690 728 186 36;$execute.Primary=$true;$execute.Anchor='Bottom,Right';$execute.Enabled=$false
 function Open-Templates($taskId=''){
  try{
   $start=New-Object Diagnostics.ProcessStartInfo;$start.FileName=Join-Path $env:SystemRoot 'System32\WindowsPowerShell\v1.0\powershell.exe'
@@ -350,7 +356,9 @@ $copy.Add_Click({
 })
 [TrayDesign]::StyleFields($window)
 # Rounded frames for the main inputs and lists; tab panes keep the tab control's border.
-foreach($c in @($search,$list,$details,$outputList)){$null=[TrayDesign]::Frame($c)}
+foreach($c in @($search,$list,$details,$outputList)){$field=[TrayDesign]::Frame($c);if($c -eq $search){$field.Height=34}}
+# Detail panes sit inside the tab card, so they drop their own border.
+foreach($box in @($replyDetails,$inputDetails,$checkDetails)){$box.BorderStyle='None';$box.BackColor=[Drawing.Color]::White}
 $title.Anchor='Top,Left,Right';$intro.Anchor='Top,Left,Right';$heading.Anchor='Top,Left,Right'
 $window.AutoScaleDimensions=New-Object Drawing.SizeF(96,96);$window.PerformAutoScale()
 Register-UiPreferences $window $Root 'task-history' (-not ($Verify -or $Preview)) $tabs @{filter=$filter} @{tasks=$list;outputs=$outputList}

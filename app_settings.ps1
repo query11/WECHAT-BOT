@@ -7,29 +7,33 @@ Add-Type -Path (Join-Path $PSScriptRoot 'tray_theme.cs') -ReferencedAssemblies S
 [TrayDesign]::EnableDpi();[Windows.Forms.Application]::EnableVisualStyles()
 $window=New-Object Windows.Forms.Form
 $window.AutoScaleDimensions=New-Object Drawing.SizeF(96,96);$window.AutoScaleMode='Dpi'
-$window.Text='微信助手 · 常用应用';$window.ClientSize=New-Object Drawing.Size(760,600)
-$window.MinimumSize=New-Object Drawing.Size(776,639);$window.StartPosition='CenterScreen'
+$window.Text='微信助手 · 常用应用';$window.ClientSize=New-Object Drawing.Size(820,606)
+$window.MinimumSize=New-Object Drawing.Size(720,560);$window.StartPosition='CenterScreen'
 $iconPath=Join-Path $PSScriptRoot 'wechat-assistant-v2.ico';if(Test-Path -LiteralPath $iconPath){$window.Icon=New-Object Drawing.Icon($iconPath)}
 $window.BackColor=[TrayDesign]::PageColor;$window.ForeColor=[TrayDesign]::Heading;$window.Font=New-Object Drawing.Font('Microsoft YaHei UI',10)
-function Label($text,$x,$y,$w,$h,$size=10){
+function Label($text,$x,$y,$w,$h,$size=10,$parent=$window){
  $l=New-Object Windows.Forms.Label;$l.Text=$text;$l.AutoEllipsis=$true;$l.SetBounds($x,$y,$w,$h);$l.Font=New-Object Drawing.Font('Microsoft YaHei UI',$size)
- $window.Controls.Add($l);return $l
+ $l.BackColor=[Drawing.Color]::Transparent;$l.TextAlign='MiddleLeft';$parent.Controls.Add($l);return $l
 }
-$title=Label '常用应用与别名' 26 20 690 40 16;$title.Font=New-Object Drawing.Font('Microsoft YaHei UI',16,[Drawing.FontStyle]::Bold);$title.Anchor='Top,Left,Right'
-$intro=Label '勾选收藏，常用应用优先显示。选中应用后可设置简称。' 28 68 690 30;$intro.ForeColor=[TrayDesign]::MutedColor;$intro.Anchor='Top,Left,Right'
+# Header, one card with the app list and alias editor, then status and actions along the bottom.
+$title=Label '常用应用与别名' 28 18 600 40 16;$title.Font=New-Object Drawing.Font('Microsoft YaHei UI',16,[Drawing.FontStyle]::Bold);$title.Anchor='Top,Left,Right'
+$intro=Label '勾选收藏，常用应用优先显示。选中应用后可设置简称，在微信里用简称打开。' 28 58 764 26;$intro.ForeColor=[TrayDesign]::MutedColor;$intro.Anchor='Top,Left,Right'
+$card=New-Object TrayCard;$card.SetBounds(24,96,772,436);$card.Anchor='Top,Bottom,Left,Right';$window.Controls.Add($card)
+$cardTitle=Label '应用列表' 16 12 200 28 12 $card;$cardTitle.Font=New-Object Drawing.Font('Microsoft YaHei UI',12,[Drawing.FontStyle]::Bold)
+$countLabel=Label '' 216 12 540 28 9 $card;$countLabel.TextAlign='MiddleRight';$countLabel.ForeColor=[TrayDesign]::MutedColor;$countLabel.Anchor='Top,Right'
 $list=New-Object Windows.Forms.ListView
-$list.SetBounds(28,110,704,310);$list.View='Details';$list.CheckBoxes=$true;$list.FullRowSelect=$true
+$list.SetBounds(16,48,740,292);$list.View='Details';$list.CheckBoxes=$true;$list.FullRowSelect=$true
 $list.MultiSelect=$false;$list.HideSelection=$false;$list.Anchor='Top,Bottom,Left,Right'
 $null=$list.Columns.Add('应用',210);$null=$list.Columns.Add('别名',170);$null=$list.Columns.Add('目标 / 状态',290)
-$window.Controls.Add($list)
+$card.Controls.Add($list)
 function Size-AppColumns { $width=$list.ClientSize.Width-24;$list.Columns[0].Width=[int]($width*.30);$list.Columns[1].Width=[int]($width*.25);$list.Columns[2].Width=[Math]::Max(100,$width-$list.Columns[0].Width-$list.Columns[1].Width) }
 $list.Add_SizeChanged({Size-AppColumns});$window.Add_Shown({Size-AppColumns})
-$aliasLabel=Label '所选应用别名（多个用逗号分隔，每个最多 20 字）' 28 436 704 26
-$aliases=New-Object Windows.Forms.TextBox;$aliases.SetBounds(28,467,704,30);$aliases.Enabled=$false;$window.Controls.Add($aliases)
-$status=Label '正在读取应用…' 28 509 704 35 9
-$reload=New-Object TrayButton;$reload.Text='重新读取';$reload.SetBounds(28,548,130,36);$window.Controls.Add($reload)
-$save=New-Object TrayButton;$save.Text='保存';$save.Primary=$true;$save.SetBounds(596,548,136,36);$window.Controls.Add($save)
-$aliasLabel.Anchor='Bottom,Left,Right';$aliases.Anchor='Bottom,Left,Right';$status.Anchor='Bottom,Left,Right';$reload.Anchor='Bottom,Left';$save.Anchor='Bottom,Right'
+$aliasLabel=Label '所选应用别名（多个用逗号分隔，每个最多 20 字）' 16 352 740 24 10 $card;$aliasLabel.ForeColor=[TrayDesign]::MutedColor
+$aliases=New-Object Windows.Forms.TextBox;$aliases.SetBounds(16,380,740,36);$aliases.Enabled=$false;$card.Controls.Add($aliases)
+$status=Label '正在读取应用…' 28 552 500 40 9.5
+$reload=New-Object TrayButton;$reload.Text='重新读取';$reload.SetBounds(548,554,120,36);$window.Controls.Add($reload)
+$save=New-Object TrayButton;$save.Text='保存';$save.Primary=$true;$save.SetBounds(680,554,116,36);$window.Controls.Add($save)
+$aliasLabel.Anchor='Bottom,Left,Right';$aliases.Anchor='Bottom,Left,Right';$status.Anchor='Bottom,Left,Right';$reload.Anchor='Bottom,Right';$save.Anchor='Bottom,Right'
 $script:dirty=$false;$script:data=$null;$script:selected=$null;$script:loading=$false;$script:job=$null
 function Update-AppActions {
  $ready=($null -ne $script:data -and -not $script:job)
@@ -37,6 +41,7 @@ function Update-AppActions {
  $aliases.Enabled=$ready -and $script:selected -and $script:selected.Tag.available
  $save.Text=if($script:job -and $script:job.action -eq 'save'){'正在保存…'}else{'保存修改'}
  $reload.Text=if($script:job -and $script:job.action -eq 'view'){'正在读取…'}else{'重新读取'}
+ $countLabel.Text=if($script:data){'共 '+$list.Items.Count+' 个 · 已收藏 '+@($list.Items | Where-Object {$_.Checked}).Count+' 个'}else{''}
 }
 function Commit-Aliases {
  if($script:selected -and -not $script:loading){
@@ -110,7 +115,7 @@ $window.Add_FormClosing({param($sender,$event)
   if($script:dirty -and -not $Verify -and -not $Preview -and [Windows.Forms.MessageBox]::Show($window,'有未保存的收藏或别名，确定放弃吗？','常用应用','YesNo','Question') -ne 'Yes'){$event.Cancel=$true}
 })
 $window.Add_FormClosed({$timer.Stop();$timer.Dispose();if($script:job){$script:job.process.Dispose()}})
-[TrayDesign]::StyleFields($window);foreach($c in @($list,$aliases)){$null=[TrayDesign]::Frame($c)};[TrayDesign]::SaveShortcut($window,$save);Update-AppActions
+[TrayDesign]::StyleFields($window);$null=[TrayDesign]::Frame($list);$aliasField=[TrayDesign]::Frame($aliases);$aliasField.Height=36;[TrayDesign]::SaveShortcut($window,$save);Update-AppActions
 if($Verify){
  # Offline visual/control test: no discovery, process execution, or persisted writes.
  Populate ([pscustomobject]@{revision=0;apps=@([pscustomobject]@{id='fake';name='示例应用';target='隔离测试';available=$true;favorite=$true;aliases=@('示例')})})

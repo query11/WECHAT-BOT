@@ -24,10 +24,10 @@ function List($parent,$x,$y,$w,$h,$columns){
 function Combo($parent,$x,$y,$w){$c=New-Object Windows.Forms.ComboBox;$c.DropDownStyle='DropDownList';$c.SetBounds($x,$y,$w,32);$parent.Controls.Add($c);$script:layout[$c]=@($x,$y,$w,32);return $c}
 $title=Label $window '快捷任务' 26 18 600 40;$title.Font=New-Object Drawing.Font('Microsoft YaHei UI',16,[Drawing.FontStyle]::Bold)
 $intro=Label $window '从模板或本机文件开始，核对后运行；也可安排定时任务、查看与修改结果。' 28 60 860 26;$intro.ForeColor=[TrayDesign]::MutedColor
-$null=Label $window '微信用户' 28 99 88 28
+$ownerLabel=Label $window '微信用户' 28 97 88 32;$ownerLabel.ForeColor=[TrayDesign]::MutedColor;$ownerLabel.TextAlign='MiddleLeft'
 $owner=Combo $window 120 95 590;$owner.Anchor='Top,Left,Right'
 $refresh=Button $window '重新读取' 760 93 172;$refresh.Anchor='Top,Right'
-$tabs=New-Object Windows.Forms.TabControl;$tabs.SetBounds(28,136,904,548);$tabs.Anchor='Top,Bottom,Left,Right';$window.Controls.Add($tabs)
+$tabs=New-Object TrayTabs;$tabs.SetBounds(28,136,904,548);$tabs.Anchor='Top,Bottom,Left,Right';$window.Controls.Add($tabs)
 $pages=@{}
 foreach($spec in @(@('templates','运行模板'),@('batches','附件核对'),@('results','任务结果'),@('revise','继续修改'),@('localfiles','文件任务'),@('schedules','定时任务'))){$p=New-Object Windows.Forms.TabPage;$p.Text=$spec[1];$p.BackColor=[Drawing.Color]::White;$null=$tabs.TabPages.Add($p);$pages[$spec[0]]=$p}
 $tabs.SelectedTab=$pages[$Page]
@@ -217,7 +217,15 @@ function Layout-Workflow {
  }finally{$script:layoutBusy=$false}
 }
 $window.Add_Shown({Layout-Workflow});$window.Add_SizeChanged({Layout-Workflow});$tabs.Add_SelectedIndexChanged({Layout-Workflow})
-[TrayDesign]::StyleFields($window);$window.AutoScaleDimensions=New-Object Drawing.SizeF(96,96);$window.PerformAutoScale();$timer.Start();Request 'view'
+[TrayDesign]::StyleFields($window)
+# Rounded frames for page text boxes and lists. The frame takes over the control's layout entry,
+# so Layout-Workflow keeps stretching the right column as before.
+foreach($c in @($script:layout.Keys)){
+ if(($c -is [Windows.Forms.TextBox] -or $c -is [Windows.Forms.ListView]) -and $c.Parent -is [Windows.Forms.TabPage]){
+  $field=[TrayDesign]::Frame($c);$script:layout[$field]=$script:layout[$c];$null=$script:layout.Remove($c)
+ }
+}
+$window.AutoScaleDimensions=New-Object Drawing.SizeF(96,96);$window.PerformAutoScale();$timer.Start();Request 'view'
 Register-UiPreferences $window $Root 'workflow' (-not $Verify) $tabs @{} @{templates=$templates;batches=$batches;results=$results;batchFiles=$batchFiles;files=$files;versions=$versions;revisionFiles=$revisionFiles;localFiles=$localFiles;scheduleList=$scheduleList} (-not $PSBoundParameters.ContainsKey('Page'))
 Layout-Workflow
 if($PreferenceProbe){. (Join-Path $PSScriptRoot 'tools/ui_preference_probe.ps1');Invoke-UiPreferenceProbe $window $Root $PreferenceProbe;exit}
@@ -254,7 +262,7 @@ if($Verify){
   $seal.PerformClick();Wait-Request
   if((Selected $batches).state -ne 'ready'){throw 'Checklist was not sealed'}
   $tabs.SelectedTab=$tp;[Windows.Forms.Application]::DoEvents();$batchChoice.SelectedIndex=1;$body.Text='本次按项目整理';$previewButton.PerformClick();Wait-Request
-  if($run.Right -gt $tp.ClientSize.Width -or $review.Right -gt $tp.ClientSize.Width){throw 'Preview controls extend outside page'}
+  if($run.Right -gt $tp.ClientSize.Width -or $review.Parent.Right -gt $tp.ClientSize.Width){throw 'Preview controls extend outside page'}
   if($review.Text -notlike '*输出位置*' -or $review.Text -notlike '*本次附件*'){throw 'Preview missing fixed inputs'}
   Layout-Workflow;$bitmap=New-Object Drawing.Bitmap($window.Width,$window.Height);$window.DrawToBitmap($bitmap,(New-Object Drawing.Rectangle(0,0,$window.Width,$window.Height)));$bitmap.Save((Join-Path $Root '.runtime/workflow-preview.png'));$bitmap.Dispose()
   $run.PerformClick();Wait-Request
@@ -277,7 +285,7 @@ if($Verify){
   $revisionBody.Text+=' 末尾补充结论。'
   if($revisionRun.Enabled){throw 'Body edit did not invalidate preview'}
   $revisionMode.SelectedIndex=0;$revisionCheck.PerformClick();Wait-Request;Layout-Workflow
-  if($revisionRun.Right -gt $vp.ClientSize.Width -or $revisionReview.Right -gt $vp.ClientSize.Width){throw 'Revision controls outside page'}
+  if($revisionRun.Right -gt $vp.ClientSize.Width -or $revisionReview.Parent.Right -gt $vp.ClientSize.Width){throw 'Revision controls outside page'}
   $bitmap=New-Object Drawing.Bitmap($window.Width,$window.Height);$window.DrawToBitmap($bitmap,(New-Object Drawing.Rectangle(0,0,$window.Width,$window.Height)));$bitmap.Save((Join-Path $Root '.runtime/workflow-revision.png'));$bitmap.Dispose()
   $revisionRun.PerformClick();Wait-Request
   if($revisionRun.Enabled -or $script:revisionPreview){throw 'Revision confirmation remained reusable'}
@@ -316,7 +324,7 @@ public static class FileDropProbe {
   if($localFiles.Items.Count -or $localRun.Enabled){throw 'Removal did not invalidate preview'}
   Add-LocalPaths @((Join-Path $Root 'desktop-input.csv'))
   $localCheck.PerformClick();Wait-Request;Layout-Workflow
-  if($localRun.Right -gt $lp.ClientSize.Width -or $localReview.Right -gt $lp.ClientSize.Width){throw 'File task controls outside page'}
+  if($localRun.Right -gt $lp.ClientSize.Width -or $localReview.Parent.Right -gt $lp.ClientSize.Width){throw 'File task controls outside page'}
   $bitmap=New-Object Drawing.Bitmap($window.Width,$window.Height);$window.DrawToBitmap($bitmap,(New-Object Drawing.Rectangle(0,0,$window.Width,$window.Height)));$bitmap.Save((Join-Path $Root '.runtime/workflow-files.png'));$bitmap.Dispose()
   $localRun.PerformClick();Wait-Request
   if($localRun.Enabled -or $script:localPreview){throw 'File confirmation remained reusable'}
@@ -334,7 +342,7 @@ public static class FileDropProbe {
   $scheduleCheck.PerformClick();Wait-Request;$scheduleTime.Value=$scheduleTime.Value.AddMinutes(1)
   if($scheduleSave.Enabled){throw 'Schedule time edit did not invalidate preview'}
   $scheduleCheck.PerformClick();Wait-Request;Layout-Workflow
-  if($scheduleSave.Right -gt $sp.ClientSize.Width -or $scheduleReview.Right -gt $sp.ClientSize.Width -or $scheduleRepeat.Right -gt $sp.ClientSize.Width){throw 'Schedule controls outside page'}
+  if($scheduleSave.Right -gt $sp.ClientSize.Width -or $scheduleReview.Parent.Right -gt $sp.ClientSize.Width -or $scheduleRepeat.Right -gt $sp.ClientSize.Width){throw 'Schedule controls outside page'}
   $bitmap=New-Object Drawing.Bitmap($window.Width,$window.Height);$window.DrawToBitmap($bitmap,(New-Object Drawing.Rectangle(0,0,$window.Width,$window.Height)));$bitmap.Save((Join-Path $Root '.runtime/workflow-schedules.png'));$bitmap.Dispose()
   $scheduleSave.PerformClick();Wait-Request
   if($scheduleSave.Enabled -or @($script:data.schedules.items).Count -ne $before+1 -or -not (Selected $scheduleList).daily){throw 'Schedule creation did not persist exactly one daily plan'}

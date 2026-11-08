@@ -266,6 +266,43 @@ public class TrayField : Panel {
         }
     }
 }
+// Flat tabs: text headers with a blue underline for the selected page, pages inside a rounded
+// white card. The native control still handles hit testing, keyboard and page layout.
+public class TrayTabs : TabControl {
+    public TrayTabs() {
+        SetStyle(ControlStyles.UserPaint|ControlStyles.AllPaintingInWmPaint|ControlStyles.OptimizedDoubleBuffer|ControlStyles.ResizeRedraw,true);
+        SizeMode=TabSizeMode.Fixed;Padding=new Point(12,4);
+    }
+    static float ScreenScale() { using(var g=Graphics.FromHwnd(IntPtr.Zero))return g.DpiX/96f; }
+    protected override void OnCreateControl() { base.OnCreateControl(); FitHeaders(); }
+    protected override void OnFontChanged(EventArgs e) { base.OnFontChanged(e); FitHeaders(); }
+    protected override void OnControlAdded(ControlEventArgs e) { base.OnControlAdded(e); FitHeaders(); }
+    // Fixed width fits the longest page title so every header has the same rhythm.
+    void FitHeaders() {
+        float s=ScreenScale();int width=(int)(88*s);
+        foreach(TabPage page in TabPages)width=Math.Max(width,TextRenderer.MeasureText(page.Text,new Font(Font,FontStyle.Bold)).Width+(int)(28*s));
+        var size=new Size(width,(int)(38*s));
+        if(ItemSize!=size)ItemSize=size;
+    }
+    protected override void OnSelectedIndexChanged(EventArgs e) { base.OnSelectedIndexChanged(e); Invalidate(); }
+    protected override void OnPaint(PaintEventArgs e) {
+        var g=e.Graphics;g.Clear(TrayDesign.SurfaceFor(Parent));g.SmoothingMode=SmoothingMode.AntiAlias;float s=g.DpiX/96f;
+        int top=TabCount>0?GetTabRect(0).Bottom+(int)(2*s):0;
+        var card=new RectangleF(.5f,top+.5f,Width-1,Math.Max(1,Height-top-1));
+        using(var p=TrayDesign.Round(card,10*s)) {
+            using(var brush=new SolidBrush(TrayDesign.CardColor))g.FillPath(brush,p);
+            using(var pen=new Pen(TrayDesign.BorderColor))g.DrawPath(pen,p);
+        }
+        for(int i=0;i<TabCount;i++) {
+            var r=GetTabRect(i);bool selected=i==SelectedIndex;
+            using(var font=new Font(Font,selected?FontStyle.Bold:FontStyle.Regular))
+                TextRenderer.DrawText(g,TabPages[i].Text,font,r,!Enabled?TrayDesign.DisabledText:(selected?TrayDesign.Blue:TrayDesign.MutedColor),TextFormatFlags.HorizontalCenter|TextFormatFlags.VerticalCenter|TextFormatFlags.EndEllipsis);
+            if(selected) using(var p=TrayDesign.Round(new RectangleF(r.X+14*s,r.Bottom-3*s,Math.Max(1,r.Width-28*s),3*s),1.5f*s))
+                using(var brush=new SolidBrush(TrayDesign.Blue))g.FillPath(brush,p);
+            if(selected && Focused && ShowFocusCues) using(var pen=new Pen(TrayDesign.Blue,1f)){var f=r;f.Inflate(-4,-4);pen.DashStyle=DashStyle.Dot;g.DrawRectangle(pen,f);}
+        }
+    }
+}
 public class TrayListItem {
     public string Title {get;set;}
     public string Detail {get;set;}

@@ -8,44 +8,53 @@ Add-Type -AssemblyName System.Drawing
 Add-Type -Path (Join-Path $PSScriptRoot 'tray_theme.cs') -ReferencedAssemblies System.Windows.Forms,System.Drawing
 [TrayDesign]::EnableDpi();[Windows.Forms.Application]::EnableVisualStyles()
 $window=New-Object Windows.Forms.Form
-$window.Text='微信助手 · 任务模板';$window.ClientSize=New-Object Drawing.Size(900,720)
+$window.Text='微信助手 · 任务模板';$window.ClientSize=New-Object Drawing.Size(900,724)
 $window.MinimumSize=New-Object Drawing.Size(916,759);$window.StartPosition='CenterScreen'
 $window.AutoScaleDimensions=New-Object Drawing.SizeF(96,96);$window.AutoScaleMode='Dpi'
 $window.BackColor=[TrayDesign]::PageColor;$window.ForeColor=[TrayDesign]::Heading
 $window.Font=New-Object Drawing.Font('Microsoft YaHei UI',10)
 $icon=Join-Path $PSScriptRoot 'wechat-assistant-v2.ico';if(Test-Path -LiteralPath $icon){$window.Icon=New-Object Drawing.Icon($icon)}
-function Label($text,$x,$y,$w,$h,$size=10){
- $c=New-Object Windows.Forms.Label;$c.Text=$text;$c.SetBounds($x,$y,$w,$h);$c.AutoEllipsis=$true
- $c.Font=New-Object Drawing.Font('Microsoft YaHei UI',$size);$window.Controls.Add($c);return $c
+function Label($text,$x,$y,$w,$h,$size=10,$parent=$window){
+ $c=New-Object Windows.Forms.Label;$c.Text=$text;$c.SetBounds($x,$y,$w,$h);$c.AutoEllipsis=$true;$c.BackColor=[Drawing.Color]::Transparent
+ $c.Font=New-Object Drawing.Font('Microsoft YaHei UI',$size);$parent.Controls.Add($c);return $c
 }
-function Button($text,$x,$y,$w){$c=New-Object TrayButton;$c.Text=$text;$c.SetBounds($x,$y,$w,36);$window.Controls.Add($c);return $c}
-$title=Label '任务模板' 24 18 600 38 16;$title.Font=New-Object Drawing.Font('Microsoft YaHei UI',16,[Drawing.FontStyle]::Bold)
-$intro=Label '把常用要求保存下来，下次在微信直接按模板处理。' 26 62 840 26 10;$intro.ForeColor=[TrayDesign]::MutedColor
-$ownerLabel=Label '微信用户' 26 103 90 28
-$owner=New-Object Windows.Forms.ComboBox;$owner.DropDownStyle='DropDownList';$owner.SetBounds(122,99,516,30);$owner.Anchor='Top,Left,Right';$window.Controls.Add($owner)
-$reload=Button '重新读取' 720 97 154;$reload.Anchor='Top,Right'
+function Button($text,$x,$y,$w,$parent=$window){$c=New-Object TrayButton;$c.Text=$text;$c.SetBounds($x,$y,$w,36);$parent.Controls.Add($c);return $c}
+function Card($x,$y,$w,$h){$c=New-Object TrayCard;$c.SetBounds($x,$y,$w,$h);$window.Controls.Add($c);return $c}
+# Header and user row, a templates card and a form card side by side, status and actions below.
+$title=Label '任务模板' 28 18 600 40 16;$title.Font=New-Object Drawing.Font('Microsoft YaHei UI',16,[Drawing.FontStyle]::Bold)
+$intro=Label '把常用要求保存下来，下次在微信直接按模板处理。' 28 58 840 26 10;$intro.ForeColor=[TrayDesign]::MutedColor
+$ownerLabel=Label '微信用户' 28 96 84 34;$ownerLabel.ForeColor=[TrayDesign]::MutedColor;$ownerLabel.TextAlign='MiddleLeft'
+$owner=New-Object Windows.Forms.ComboBox;$owner.DropDownStyle='DropDownList';$owner.SetBounds(116,98,584,30);$owner.Anchor='Top,Left,Right';$window.Controls.Add($owner)
+$reload=Button '重新读取' 716 96 160;$reload.Anchor='Top,Right'
+$listCard=Card 24 144 256 520;$listCard.Anchor='Top,Bottom,Left'
+$listTitle=Label '模板' 16 12 200 28 12 $listCard;$listTitle.Font=New-Object Drawing.Font('Microsoft YaHei UI',12,[Drawing.FontStyle]::Bold)
 $list=New-Object Windows.Forms.ListView;$list.View='Details';$list.FullRowSelect=$true;$list.MultiSelect=$false;$list.HideSelection=$false
-$list.SetBounds(26,149,240,475);$list.Anchor='Top,Bottom,Left';$null=$list.Columns.Add('模板名称',158);$null=$list.Columns.Add('版本',58);$window.Controls.Add($list)
+$list.SetBounds(16,48,224,404);$list.Anchor='Top,Bottom,Left,Right';$null=$list.Columns.Add('模板名称',158);$null=$list.Columns.Add('版本',58);$listCard.Controls.Add($list)
 function Size-TemplateColumns {if(Set-RememberedColumns $list){return};$width=$list.ClientSize.Width-24;$list.Columns[0].Width=[int]($width*.65);$list.Columns[1].Width=[Math]::Max(70,$width-$list.Columns[0].Width)}
 $list.Add_SizeChanged({Size-TemplateColumns});$window.Add_Shown({Size-TemplateColumns})
-$new=Button '新建' 26 636 112;$new.Anchor='Bottom,Left'
-$duplicate=Button '复制模板' 150 636 116;$duplicate.Anchor='Bottom,Left'
+$new=Button '新建' 16 468 108 $listCard;$new.Anchor='Bottom,Left';$new.IconKind='plus'
+$duplicate=Button '复制模板' 132 468 108 $listCard;$duplicate.Anchor='Bottom,Left'
+$formCard=Card 296 144 580 520;$formCard.Anchor='Top,Bottom,Left,Right'
 $fields=@{}
 $labels=@{}
-foreach($spec in @(@('name','模板名称',149,30,40),@('inputs','输入要求',211,62,2000),@('steps','处理步骤',305,108,8000),@('output_dir','输出目录',445,30,2000),@('output_format','输出格式',507,30,1000),@('checks','检查条件（可选）',569,55,4000))){
- $key=[string]$spec[0];$y=[int]$spec[2]
- $label=Label $spec[1] 290 ($y-25) 584 24 10;$label.Anchor='Top,Left,Right';$labels[$key]=$label
- $box=New-Object Windows.Forms.TextBox;$box.SetBounds(290,$y,584,[int]$spec[3]);$box.MaxLength=[int]$spec[4];$box.Anchor='Top,Left,Right'
- if([int]$spec[3] -gt 30){$box.Multiline=$true;$box.ScrollBars='Vertical';$box.AcceptsReturn=$true}
- $window.Controls.Add($box);$fields[$key]=$box
+# key, label, x, y, width, height, max length; output folder and format share one row.
+foreach($spec in @(@('name','模板名称',20,40,540,34,40),@('inputs','输入要求',20,108,540,62,2000),@('steps','处理步骤',20,204,540,108,8000),@('output_dir','输出目录',20,350,264,34,2000),@('output_format','输出格式',296,350,264,34,1000),@('checks','检查条件（可选）',20,424,540,76,4000))){
+ $key=[string]$spec[0];$x=[int]$spec[2];$y=[int]$spec[3];$w=[int]$spec[4];$h=[int]$spec[5]
+ $anchor=if($key -eq 'output_dir'){'Top,Left'}else{'Top,Left,Right'}
+ $label=Label $spec[1] $x ($y-26) $w 24 10 $formCard;$label.Anchor=$anchor;$label.ForeColor=[TrayDesign]::MutedColor;$labels[$key]=$label
+ $box=New-Object Windows.Forms.TextBox;$box.SetBounds($x,$y,$w,$h);$box.MaxLength=[int]$spec[6];$box.Anchor=$anchor
+ if($h -gt 34){$box.Multiline=$true;$box.ScrollBars='Vertical';$box.AcceptsReturn=$true}
+ $formCard.Controls.Add($box);$fields[$key]=$box
 }
 $help=New-Object Windows.Forms.ToolTip;$help.SetToolTip($fields['output_dir'],'填写“工作目录”或工作目录内的子目录，例如 工作目录/周报。')
 $help.SetToolTip($fields['checks'],"每行一条规则，例如：`r`n必需列 | 汇总.csv | - | 项目,金额`r`n列合计 | 汇总.csv | - | 金额 | 40")
-$checksHelp=New-Object Windows.Forms.LinkLabel;$checksHelp.Text='规则示例';$checksHelp.SetBounds(788,544,86,24);$checksHelp.Anchor='Top,Right';$window.Controls.Add($checksHelp)
+$labels['checks'].Width=432   # leaves room for the rule examples link on the same row
+$checksHelp=New-Object Windows.Forms.LinkLabel;$checksHelp.Text='规则示例';$checksHelp.SetBounds(464,398,96,24);$checksHelp.Anchor='Top,Right';$checksHelp.TextAlign='MiddleRight'
+$checksHelp.LinkColor=[TrayDesign]::Blue;$checksHelp.ActiveLinkColor=[TrayDesign]::Blue;$checksHelp.BackColor=[Drawing.Color]::Transparent;$formCard.Controls.Add($checksHelp)
 $checksHelp.Add_LinkClicked({[void][Windows.Forms.MessageBox]::Show($window,"每行一条，字段之间用 | 分隔：`r`n`r`n必需列 | 汇总.csv | - | 项目,金额`r`n列合计 | 汇总.csv | - | 金额 | 40`r`n必需章节 | 报告.md | 结论,建议`r`n`r`nXLSX 的第三项填写工作表名称，CSV 填 -。",'检查条件示例','OK','Information')})
-$delete=Button '删除模板' 290 636 128;$delete.Anchor='Bottom,Left';$delete.Danger=$true
-$save=Button '保存新模板' 704 636 170;$save.Anchor='Bottom,Right';$save.Primary=$true
-$feedback=Label '正在读取模板…' 26 680 848 30 9;$feedback.Anchor='Bottom,Left,Right';$feedback.ForeColor=[TrayDesign]::MutedColor
+$delete=Button '删除模板' 566 676 128;$delete.Anchor='Bottom,Right';$delete.Danger=$true
+$save=Button '保存新模板' 706 676 170;$save.Anchor='Bottom,Right';$save.Primary=$true
+$feedback=Label '正在读取模板…' 28 676 520 36 9.5;$feedback.Anchor='Bottom,Left,Right';$feedback.ForeColor=[TrayDesign]::MutedColor;$feedback.TextAlign='MiddleLeft'
 $script:data=$null;$script:job=$null;$script:loading=$false;$script:dirty=$false;$script:current=$null;$script:users=@();$script:feedbackError=$false
 function Update-Actions {
  $ready=($script:data -and $script:data.ok -and -not $script:job)
@@ -148,7 +157,7 @@ $delete.Add_Click({if($script:current -and ($Verify -or [Windows.Forms.MessageBo
 $window.KeyPreview=$true;$window.Add_KeyDown({param($sender,$event) if($event.Control -and $event.KeyCode -eq 'S' -and $save.Enabled){$save.PerformClick();$event.SuppressKeyPress=$true}})
 $window.Add_FormClosing({param($sender,$event) if($script:job){$feedback.Text='请等待当前操作完成后关闭。';$event.Cancel=$true}elseif(-not (Discard-Changes)){$event.Cancel=$true}})
 $window.Add_Disposed({$timer.Stop();$timer.Dispose();$help.Dispose()})
-[TrayDesign]::StyleFields($window);$null=[TrayDesign]::Frame($list);foreach($box in @($fields.Values)){$null=[TrayDesign]::Frame($box)};$window.AutoScaleDimensions=New-Object Drawing.SizeF(96,96);$window.PerformAutoScale();$timer.Start()
+[TrayDesign]::StyleFields($window);$null=[TrayDesign]::Frame($list);foreach($box in @($fields.Values)){$field=[TrayDesign]::Frame($box);if(-not $box.Multiline){$field.Height=34}};$window.AutoScaleDimensions=New-Object Drawing.SizeF(96,96);$window.PerformAutoScale();$timer.Start()
 Register-UiPreferences $window $Root 'template-editor' (-not ($Verify -or $Preview)) $null @{} @{templates=$list}
 function Wait-Request {
  $deadline=[DateTime]::UtcNow.AddSeconds(30)

@@ -24,7 +24,7 @@ function Read-Memory {
 $script:original=if($Preview){"- 常用工作目录：D:\工作资料`n- 默认输出目录：D:\工作资料\输出`n- 回复偏好：先说明结果，再简短解释。"}else{Read-Memory}
 $window=New-Object Windows.Forms.Form
 $window.AutoScaleMode='Dpi'
-$window.Text='微信助手 · 固定记忆';$window.ClientSize=New-Object Drawing.Size(720,570)
+$window.Text='微信助手 · 固定记忆';$window.ClientSize=New-Object Drawing.Size(760,600)
 $appIcon=Join-Path $projectDir 'wechat-assistant-v2.ico'
 if(Test-Path -LiteralPath $appIcon){$window.Icon=New-Object Drawing.Icon($appIcon)}
 $window.MinimumSize=New-Object Drawing.Size(650,540);$window.StartPosition='CenterScreen'
@@ -32,22 +32,24 @@ $window.Font=New-Object Drawing.Font('Microsoft YaHei UI',10)
 $window.BackColor=[TrayDesign]::PageColor;$window.ForeColor=[TrayDesign]::Heading
 $title=New-Object Windows.Forms.Label
 $title.Text='固定记忆';$title.Font=New-Object Drawing.Font('Microsoft YaHei UI',16,[Drawing.FontStyle]::Bold)
-$title.SetBounds(24,20,650,40);$window.Controls.Add($title)
+$title.SetBounds(28,18,600,40);$title.BackColor=[Drawing.Color]::Transparent;$window.Controls.Add($title)
 $tip=New-Object Windows.Forms.Label
 $tip.Text='每次处理任务都会读取。可记录桌面、常用工作目录、输出目录和偏好；不要填写密码或密钥。'
-$tip.SetBounds(26,68,666,45);$tip.Anchor='Top,Left,Right';$window.Controls.Add($tip)
+$tip.SetBounds(28,58,704,44);$tip.Anchor='Top,Left,Right';$tip.ForeColor=[TrayDesign]::MutedColor;$tip.BackColor=[Drawing.Color]::Transparent;$window.Controls.Add($tip)
+# One card holds the directory toolbar and the editor; status and save sit below it.
+$card=New-Object TrayCard;$card.SetBounds(24,108,712,420);$card.Anchor='Top,Bottom,Left,Right';$window.Controls.Add($card)
 $kind=New-Object Windows.Forms.ComboBox
 $kind.DropDownStyle='DropDownList';$kind.Items.AddRange(@('桌面位置','常用工作目录','默认输出目录'))
-$kind.SelectedIndex=1;$kind.SetBounds(26,118,170,30);$window.Controls.Add($kind)
-$add=New-Object TrayButton;$add.Text='选择目录并添加';$add.SetBounds(208,116,160,34);$window.Controls.Add($add)
-$clear=New-Object TrayButton;$clear.Text='清空内容';$clear.Danger=$true;$clear.SetBounds(560,116,132,34);$clear.Anchor='Top,Right';$window.Controls.Add($clear)
+$kind.SelectedIndex=1;$kind.SetBounds(16,15,170,30);$card.Controls.Add($kind)
+$add=New-Object TrayButton;$add.Text='选择目录并添加';$add.IconKind='folder';$add.SetBounds(196,12,180,36);$card.Controls.Add($add)
+$clear=New-Object TrayButton;$clear.Text='清空内容';$clear.Danger=$true;$clear.SetBounds(576,12,120,36);$clear.Anchor='Top,Right';$card.Controls.Add($clear)
 $editor=New-Object Windows.Forms.TextBox
 $editor.Multiline=$true;$editor.AcceptsReturn=$true;$editor.AcceptsTab=$true;$editor.ScrollBars='Vertical'
-$editor.SetBounds(26,166,666,310);$editor.Anchor='Top,Bottom,Left,Right';$editor.Text=$script:original.Replace("`r`n","`n").Replace("`n","`r`n")
+$editor.SetBounds(16,60,680,344);$editor.Anchor='Top,Bottom,Left,Right';$editor.Text=$script:original.Replace("`r`n","`n").Replace("`n","`r`n")
 $script:initialEditor=$editor.Text
-$window.Controls.Add($editor)
-$status=New-Object Windows.Forms.Label;$status.SetBounds(26,486,666,30);$status.Anchor='Bottom,Left,Right';$window.Controls.Add($status)
-$save=New-Object TrayButton;$save.Text='保存记忆';$save.Primary=$true;$save.SetBounds(554,524,138,34);$save.Anchor='Bottom,Right';$save.Enabled=$false;$window.Controls.Add($save)
+$card.Controls.Add($editor)
+$status=New-Object Windows.Forms.Label;$status.SetBounds(28,546,560,36);$status.Anchor='Bottom,Left,Right';$status.TextAlign='MiddleLeft';$status.ForeColor=[TrayDesign]::MutedColor;$window.Controls.Add($status)
+$save=New-Object TrayButton;$save.Text='保存记忆';$save.Primary=$true;$save.SetBounds(600,546,136,36);$save.Anchor='Bottom,Right';$save.Enabled=$false;$window.Controls.Add($save)
 $editor.Add_TextChanged({$save.Enabled=($editor.Text -cne $script:initialEditor);if($save.Enabled){$status.Text='有未保存的修改 · Ctrl+S 保存';$status.ForeColor=[TrayDesign]::Blue}else{$status.Text='暂无未保存的修改';$status.ForeColor=[TrayDesign]::MutedColor}})
 [TrayDesign]::StyleFields($window);$null=[TrayDesign]::Frame($editor);[TrayDesign]::SaveShortcut($window,$save)
 function Save-Memory {
