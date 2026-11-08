@@ -49,7 +49,7 @@ $window.Controls.Add($editor)
 $status=New-Object Windows.Forms.Label;$status.SetBounds(26,486,666,30);$status.Anchor='Bottom,Left,Right';$window.Controls.Add($status)
 $save=New-Object TrayButton;$save.Text='保存记忆';$save.Primary=$true;$save.SetBounds(554,524,138,34);$save.Anchor='Bottom,Right';$save.Enabled=$false;$window.Controls.Add($save)
 $editor.Add_TextChanged({$save.Enabled=($editor.Text -cne $script:initialEditor);if($save.Enabled){$status.Text='有未保存的修改 · Ctrl+S 保存';$status.ForeColor=[TrayDesign]::Blue}else{$status.Text='暂无未保存的修改';$status.ForeColor=[TrayDesign]::MutedColor}})
-[TrayDesign]::StyleFields($window);[TrayDesign]::SaveShortcut($window,$save)
+[TrayDesign]::StyleFields($window);$null=[TrayDesign]::Frame($editor);[TrayDesign]::SaveShortcut($window,$save)
 function Save-Memory {
     if($editor.Text.Length -gt 12000){$status.Text='内容超过 12000 字符，请精简后保存。';return $false}
     if((Read-Memory) -cne $script:original){$status.Text='文件已被其他程序修改。请先保留当前草稿，再重新打开，避免覆盖。';return $false}

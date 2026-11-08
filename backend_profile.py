@@ -12,21 +12,11 @@ import urllib.parse
 import urllib.request
 import uuid
 from key_vault import read_secret,write_secret,is_encrypted
+import api_profiles
+from api_profiles import ProfileError,validate_url
 
 OFFICIAL = 'https://api.deepseek.com/anthropic'
 MODELS = ('deepseek-flash', 'deepseek-v4-pro')
-
-class ProfileError(ValueError):
-    pass
-
-
-def validate_url(value):
-    if not isinstance(value, str) or any(c.isspace() for c in value):
-        raise ProfileError('接口地址必须是完整 HTTPS 地址')
-    p=urllib.parse.urlsplit(value)
-    if p.scheme != 'https' or not p.hostname or p.username or p.password or p.query or p.fragment:
-        raise ProfileError('接口地址必须使用 HTTPS，且不能包含账号、密码、查询参数')
-    return value.rstrip('/')
 
 
 def read_config(root):
@@ -61,13 +51,53 @@ def view(root):
         'claude':{'model':cl.get('model',''),'base_url':cl.get('base_url','https://api.anthropic.com'),
                   'enabled':bool(cl.get('enabled',False)),
                   'configured':bool(key_value(root,'claude',cl)),
-                  'encrypted':is_encrypted(Path(root)/cl.get('key_file',''))}}
+                  'encrypted':is_encrypted(Path(root)/cl.get('key_file',''))},
+        'profiles':[_profile_view(root,p) for p in api_profiles.profiles(raw)],
+        'presets':[dict(p,models=list(p['models'])) for p in api_profiles.PRESETS],
+        'max_profiles':api_profiles.MAX_PROFILES}
+
+
+def _profile_view(root,p):
+    key_file=p.get('key_file','')
+    return {'id':p['id'],'name':p['name'],'preset':p.get('preset','custom'),'base_url':p['base_url'],
+            'model':p['model'],'vision':bool(p.get('vision')),'configured':bool(key_value(root,'profile',p)),
+            'encrypted':bool(key_file) and is_encrypted(Path(root)/key_file)}
+
+
+def _prepare_profile(raw,request):
+    """Validate one saved service; returns (('profile', index or None), profile, old)."""
+    items=raw.get('api_profiles') or []
+    if not isinstance(items,list):raise ProfileError('本机接口配置格式无效，请检查 config.json')
+    pid=str(request.get('profile_id') or '')
+    index=next((i for i,e in enumerate(items) if isinstance(e,dict) and e.get('id')==pid),None) if pid else None
+    if pid and index is None:raise ProfileError('该接口已被删除，请重新打开配置页')
+    old=dict(items[index]) if index is not None else {}
+    kind=old.get('preset') or request.get('preset') or 'custom'
+    if kind!='custom' and kind not in api_profiles.PRESET_IDS:raise ProfileError('请选择有效的服务类型')
+    saved=api_profiles.profiles(raw)
+    if index is None and len(saved)>=api_profiles.MAX_PROFILES:
+        raise ProfileError('最多保存 %d 个接口' % api_profiles.MAX_PROFILES)
+    name=api_profiles.clean_name(request.get('name') or (api_profiles.preset(kind) or {}).get('name',''))
+    taken={p['name'].casefold() for p in saved if p['id']!=pid}|{n.casefold() for n in api_profiles.BUILTIN_NAMES.values()}
+    if name.casefold() in taken:raise ProfileError('已有同名后端，请换一个名称')
+    profile=dict(old,preset=kind,name=name,base_url=validate_url(request.get('base_url','')),
+                 model=api_profiles.clean_model(request.get('model')),vision=bool(request.get('vision')))
+    profile['id']=old.get('id') or api_profiles.new_id(raw,kind)
+    return ('profile',index),profile,old
 
 
 def prepare(root,request):
     raw,blob,revision=read_config(root)
     provider=request.get('provider')
-    if provider not in ('deepseek','claude'):raise ProfileError('请选择 DeepSeek 或 Claude')
+    if provider=='profile':
+        field,profile,old=_prepare_profile(raw,request)
+        key=request.get('api_key','')
+        if not isinstance(key,str):raise ProfileError('API Key 格式无效')
+        actual=key.strip() or key_value(root,'profile',old)
+        if not actual or len(actual)>4096 or any(c.isspace() for c in actual):
+            raise ProfileError('请填写 API Key；留空只能保留已配置的密钥')
+        return raw,blob,revision,field,profile,actual
+    if provider not in ('deepseek','claude'):raise ProfileError('请选择要配置的后端')
     field='deepseek' if provider=='deepseek' else 'claude_api'
     old=raw.get(field) or {}
     profile=dict(old)
@@ -93,29 +123,66 @@ def prepare(root,request):
     return raw,blob,revision,field,profile,actual
 
 
-def save(root,request):
-    root=Path(root);raw,blob,revision,field,profile,key=prepare(root,request)
-    if request.get('revision')!=revision:raise ProfileError('配置已被其他窗口修改，请重新打开配置页')
-    key_path=None;temp=None
+def _write_config(root,raw,blob):
+    """Atomically replaces config.json unless another program changed it since ``blob``."""
+    temp=None
     try:
-        if request.get('api_key','').strip() and key:
-            folder=root/'.runtime';folder.mkdir(exist_ok=True)
-            key_path=folder/(request['provider']+'-'+uuid.uuid4().hex+'.key')
-            write_secret(key_path,key,exclusive=True)
-            profile['key_file']=str(key_path.relative_to(root))
-        raw[field]=profile
         with tempfile.NamedTemporaryFile(mode='w',encoding='utf-8-sig',dir=root,
                 prefix='.profile-',suffix='.tmp',delete=False) as f:
             temp=Path(f.name);json.dump(raw,f,ensure_ascii=False,indent=2);f.write('\n');f.flush();os.fsync(f.fileno())
         if (root/'config.json').read_bytes()!=blob:raise ProfileError('配置已被其他程序修改，未覆盖')
-        os.replace(temp,root/'config.json');temp=None;key_path=None
+        os.replace(temp,root/'config.json');temp=None
+    finally:
+        if temp is not None:
+            try:temp.unlink(missing_ok=True)
+            except OSError:pass
+
+
+def save(root,request):
+    root=Path(root);raw,blob,revision,field,profile,key=prepare(root,request)
+    if request.get('revision')!=revision:raise ProfileError('配置已被其他窗口修改，请重新打开配置页')
+    key_path=None
+    try:
+        if request.get('api_key','').strip() and key:
+            folder=root/'.runtime';folder.mkdir(exist_ok=True)
+            prefix=request['provider'] if isinstance(field,str) else 'api-'+profile['id']
+            key_path=folder/(prefix+'-'+uuid.uuid4().hex+'.key')
+            write_secret(key_path,key,exclusive=True)
+            profile['key_file']=key_path.relative_to(root).as_posix()
+        if isinstance(field,tuple):
+            items=list(raw.get('api_profiles') or [])
+            if field[1] is None:items.append(profile)
+            else:items[field[1]]=profile
+            raw['api_profiles']=items
+        else:raw[field]=profile
+        _write_config(root,raw,blob);key_path=None
     except OSError:raise ProfileError('保存失败，原配置保持不变') from None
     finally:
-        for p in (temp,key_path):
-            if p is not None:
-                try:p.unlink(missing_ok=True)
-                except OSError:pass
-    return dict(view(root),message='配置已保存',saved=True)
+        if key_path is not None:
+            try:key_path.unlink(missing_ok=True)
+            except OSError:pass
+    return dict(view(root),message='配置已保存',saved=True,saved_id=profile.get('id',request['provider']))
+
+
+def delete(root,request):
+    """Removes one saved service and then its key file; the active backend cannot be removed."""
+    root=Path(root);raw,blob,revision=read_config(root)
+    if request.get('revision')!=revision:raise ProfileError('配置已被其他窗口修改，请重新打开配置页')
+    items=raw.get('api_profiles') or []
+    pid=str(request.get('profile_id') or '')
+    index=next((i for i,e in enumerate(items) if isinstance(e,dict) and e.get('id')==pid),None) if isinstance(items,list) and pid else None
+    if index is None:raise ProfileError('该接口已不存在，请重新打开配置页')
+    if str(raw.get('backend','claude')).lower()==pid:raise ProfileError('正在使用的后端不能删除，请先切换到其他后端')
+    key_file=str(items[index].get('key_file') or '')
+    raw['api_profiles']=[e for i,e in enumerate(items) if i!=index]
+    try:_write_config(root,raw,blob)
+    except OSError:raise ProfileError('删除失败，原配置保持不变') from None
+    runtime=(root/'.runtime').resolve()
+    try:
+        path=(root/key_file).resolve()
+        if key_file and path.suffix.lower()=='.key' and path.parent==runtime:path.unlink(missing_ok=True)
+    except OSError:pass
+    return dict(view(root),message='已删除接口',deleted=True)
 
 
 class NoRedirect(urllib.request.HTTPRedirectHandler):
@@ -154,6 +221,7 @@ def execute(root,request):
         if op=='view':return view(root)
         if op=='save':return save(root,request)
         if op=='test':return test_connection(root,request)
+        if op=='delete':return delete(root,request)
         raise ProfileError('不支持的操作')
     except (ProfileError,OSError,ValueError,TypeError,AttributeError):
         # Only known safe, locally-authored validation messages may be returned.

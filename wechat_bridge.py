@@ -76,7 +76,8 @@ from bridge_batches import BatchMixin
 from task_templates import TaskTemplateStore, validate_snapshot
 from bridge_templates import TemplateMixin
 from deepseek_runner import DeepSeekRunner
-from claude_api_runner import ClaudeAPIRunner
+from claude_api_runner import ClaudeAPIRunner, ProfileRunner
+import api_profiles
 from ilink_client import (ILinkClient, ILinkError, ILinkTimeout, MSG_TYPE_BOT,
                           qr_login)
 from screen_control import ScreenControl
@@ -375,8 +376,13 @@ class Bridge(TemplateMixin, BatchMixin, ArtifactMixin, DeliveryMixin, ProgressMi
         """Build only the selected model runner; do not reload unrelated services."""
         wd = resolve_workdir(cfg)
         backend = str(cfg.get("backend", "claude")).lower()
-        if backend not in ("claude", "deepseek"):
-            raise SystemExit("backend 只能是 claude 或 deepseek")
+        profile = None
+        if backend not in api_profiles.RESERVED:
+            profile = api_profiles.find(cfg, backend)
+            if profile is None:
+                raise SystemExit("backend 只能是 claude、deepseek 或 api_profiles 中已保存的接口")
+            if not profile.get("key_file"):
+                raise SystemExit("%s 尚未配置 API Key" % profile["name"])
         runner_type = ClaudeRunner if backend == "claude" else DeepSeekRunner
         options = {}
         session_name = ".runtime/deepseek-sessions.json" if backend == "deepseek" else "sessions.json"
@@ -392,7 +398,15 @@ class Bridge(TemplateMixin, BatchMixin, ArtifactMixin, DeliveryMixin, ProgressMi
             options = {"key_file": os.path.join(HERE, ds.get("key_file", ".runtime/deepseek-api.key")),
                        "model": ds.get("model", "deepseek-flash"),
                        "config_dir": os.path.join(HERE, ".runtime/deepseek-cli")}
-        backend_name = "DeepSeek" if backend == "deepseek" else "Claude"
+        if profile is not None:
+            # Each saved service keeps its own Claude Code config dir and conversation index.
+            runner_type = ProfileRunner
+            options = {"key_file": os.path.join(HERE, profile["key_file"]),
+                       "model": profile["model"], "base_url": profile["base_url"],
+                       "display_name": profile["name"], "vision": bool(profile.get("vision")),
+                       "config_dir": os.path.join(HERE, ".runtime", "api-cli", profile["id"])}
+            session_name = ".runtime/api-sessions-%s.json" % profile["id"]
+        backend_name = profile["name"] if profile else ("DeepSeek" if backend == "deepseek" else "Claude")
         runner = runner_type(
             **options,
             claude_bin=cfg.get("claude_bin", "claude"), workdir=wd,
@@ -1411,9 +1425,21 @@ def _check_basics(cfg, wd):
     print("[OK]   工作目录 %s" % wd)
     backend = str(cfg.get("backend", "claude")).lower()
     print("[INFO] 模型后端：%s（本机工具执行器：Claude Code）" % backend)
-    if backend not in ("claude", "deepseek"):
-        print("[WARN] backend 只能是 claude 或 deepseek")
+    if backend not in api_profiles.backend_ids(cfg):
+        print("[WARN] backend 只能是 claude、deepseek 或 api_profiles 中已保存的接口")
         ok = False
+    elif backend not in api_profiles.RESERVED:
+        profile = api_profiles.find(cfg, backend)
+        try:
+            if not profile.get("key_file"):
+                raise SystemExit("%s 尚未配置 API Key" % profile["name"])
+            ProfileRunner(workdir=wd, key_file=os.path.join(HERE, profile["key_file"]),
+                          model=profile["model"], base_url=profile["base_url"],
+                          display_name=profile["name"])
+            print("[OK]   %s 本机配置有效；此项未调用 API" % profile["name"])
+        except SystemExit as exc:
+            print("[WARN] %s" % exc)
+            ok = False
     elif backend == "deepseek":
         ds = cfg.get("deepseek") or {}
         try:

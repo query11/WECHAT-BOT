@@ -476,7 +476,7 @@ class AdminMixin(object):
         lines = ["✅ 配置已重读，进程没重启——队列、上下文、定下的会都还在。",
                  "改过的键：%d 个" % len(changed)]
         if old_cfg.get("backend", "claude") != new.get("backend", "claude"):
-            lines.append("✅ 模型后端已切换；Claude 与 DeepSeek 各自保留独立上下文。")
+            lines.append("✅ 模型后端已切换；各后端保留独立上下文。")
         if changed:
             lines.append("　%s" % "、".join(changed[:12]))
         if warn:

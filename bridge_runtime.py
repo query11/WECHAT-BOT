@@ -8,6 +8,7 @@ import threading
 import time
 import tempfile
 from bridge_config import CONFIG_PATH, load_config
+import api_profiles
 from pathlib import Path
 from runtime_messages import explain_error, task_event
 from desktop_history import DIRECT_ACTIONS, history_action
@@ -240,6 +241,8 @@ class Runtime:
                     code_identity=self.code_identity(),
                     started=b._started_at, last_success=last_success,
                     backend=getattr(b, "backend_name", "Claude"),
+                    backend_id=str((getattr(b, 'cfg', None) or {}).get('backend', 'claude')).lower(),
+                    backends=api_profiles.backend_list(getattr(b, 'cfg', None) or {}),
                     model_health=model_state,
                     receiving_blocked=receiving_blocked,
                     model_name=b._mask(str(getattr(getattr(b,"runner",None),"model","默认模型")))[:80],
@@ -422,8 +425,8 @@ class Runtime:
     def _switch_backend(self, backend):
         """Called with the desktop lock: prepare, persist, then publish runner."""
         b = self.bridge
-        if backend not in ('deepseek', 'claude'):
-            return '不支持的模型后端'
+        if backend not in api_profiles.backend_ids(b.cfg):
+            return '不支持的模型后端；新保存的接口请先在后端配置中保存并应用'
         if b._draining or b._running or b.queue.unfinished_tasks or b._inbox_q.unfinished_tasks:
             return '还有任务或附件在处理，请空闲后再切换后端'
         if not b._worker.is_alive():
@@ -464,7 +467,7 @@ class Runtime:
                 except OSError:
                     pass
         b.runner, b.backend_name, b.cfg = prepared, name, selected
-        return '已切换到 %s，立即生效；两套对话分别保留' % name
+        return '已切换到 %s，立即生效；各后端对话分别保留' % name
 
     def _reload_profile(self):
         b=self.bridge
@@ -474,7 +477,7 @@ class Runtime:
             return '配置已保存；任务线程未就绪，请重启后台应用'
         try:
             new=load_config(CONFIG_PATH)
-            ignored=('deepseek','claude_api')
+            ignored=('deepseek','claude_api','api_profiles')
             if {k:v for k,v in new.items() if k not in ignored}!={k:v for k,v in b.cfg.items() if k not in ignored}:
                 return '配置已保存；存在其他未加载的修改，请重读配置后应用'
             runner,name=b._build_runner(dict(new,keep_context=True))

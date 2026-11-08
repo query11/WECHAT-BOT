@@ -10,7 +10,7 @@
 | [功能详解](reference/功能详解.md) | 从原 README 迁入的完整行为说明 |
 | [部署参考](reference/部署指南.md) | 详细配置、历史故障与维护说明 |
 | [托盘运行中心](reference/托盘运行中心说明.md) | 状态、重启、任务进度和桌面入口 |
-| [模型后端](reference/DeepSeek后端说明.md) | Claude / DeepSeek 切换与 API 配置 |
+| [模型后端](reference/DeepSeek后端说明.md) | Claude、DeepSeek、Kimi 等兼容接口的切换与 API 配置 |
 | [验证记录](testing/可靠性检查与验收.md) | 各轮测试范围、结果和已知边界 |
 | [整理验收](testing/项目整理验收.md) | 本次迁移后的独立副本验证结果 |
 | [实机验收](testing/实机验收.md) | 微信、附件、提醒和取消的手机检查步骤 |

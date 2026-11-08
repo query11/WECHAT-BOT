@@ -6,7 +6,7 @@
 
 ## 配置和切换
 
-在微信助手运行中心的“服务状态”卡片右上角，可直接点击 **DeepSeek 官方 / Claude 原后端**；托盘右键菜单也有“模型后端”。蓝色表示后台实际正在使用的后端。空闲时点击后立即生效并保存，无需重启；有任务、附件或收尾操作时暂时禁用。配置校验或保存失败时保留原后端；有其他尚未加载的配置修改时，先重读配置。
+在运行中心“当前模型”卡片的下拉选择器中选择后端；托盘菜单“设置 → 模型后端”也可切换。勾选项表示后台实际正在使用的后端。空闲时点击后立即生效并保存，无需重启；有任务、附件或收尾操作时暂时禁用。配置校验或保存失败时保留原后端；有其他尚未加载的配置修改时，先重读配置。
 
 `config.json` 中的 `backend` 选择后端，`deepseek.model` 默认 `deepseek-flash`，`deepseek.key_file` 默认 `.runtime/deepseek-api.key`。密钥只放本机 `.key` 文件，不写入示例配置、命令行参数或版本控制。也支持 `DEEPSEEK_API_KEY` 环境变量；设置时优先使用该变量。
 
@@ -16,6 +16,8 @@
 python tools/set_backend.py deepseek
 # 或切回原 Claude：
 python tools/set_backend.py claude
+# 或切换到后端配置中保存的服务（使用其 id，例如 kimi）：
+python tools/set_backend.py kimi
 ```
 
 脚本只原子保存配置，不打断正在运行的任务。任务空闲时，在微信对话中发送 `/reload`，或正常关闭后台再从现有入口启动。不要用强制停止来切换忙碌中的后台。运行状态 `.runtime/status.json` 的 `backend` 显示当前实际加载的后端。
@@ -65,6 +67,22 @@ CLI 返回的 `modelUsage` 用于确认所选模型，不作为实际账单；�
 - “保存并应用”先保存，再请求后台空闲时加载。不会切换当前选中的后端；忙碌时旧配置继续执行，稍后再次点击即可应用。后台未启动时，下次启动读取保存值。
 - 配置文件被其他窗口修改时，拒绝覆盖，请重开配置页。保存失败保留旧配置；加载失败会说明已保存但尚未应用，原运行后端保持不变。
 - DeepSeek 环境变量 `DEEPSEEK_API_KEY` 优先于文件。界面会提示；设置了该变量时，应先移除再通过界面替换 Key。
+
+## 更多模型服务与自定义接口
+
+除 Claude 与 DeepSeek 外，可在“后端配置”中点击“添加服务”保存更多 **Anthropic 兼容**的模型服务，最多 12 个：
+
+| 预设 | 默认地址（中国大陆站） | 建议模型 |
+| --- | --- | --- |
+| Kimi（月之暗面） | `https://api.moonshot.cn/anthropic` | kimi-k3、kimi-k2.7-code、kimi-k2.6 |
+| 智谱 GLM | `https://open.bigmodel.cn/api/anthropic` | glm-5.2、glm-4.7 |
+| 通义千问（阿里云百炼北京） | `https://dashscope.aliyuncs.com/apps/anthropic` | qwen3.7-plus、qwen3.7-max、qwen3.6-flash |
+| MiniMax | `https://api.minimaxi.com/anthropic` | MiniMax-M2.5、MiniMax-M2.1 |
+| 自定义接口 | 自行填写 HTTPS 地址 | 自行填写 |
+
+预设只预填地址和建议模型，二者均可修改：服务商更新型号较快，国际站账号也使用其他地址（如 `api.moonshot.ai`、`api.minimax.io`），新加坡等地域的百炼地址与北京不同。请以服务商控制台为准，并用“测试连接”确认后再保存。只支持 Anthropic Messages 接口，OpenAI-only 的 `/chat/completions` 地址不能使用。
+
+每个服务保存在 `config.json` 的 `api_profiles` 中（名称、地址、模型、Key 文件、是否支持图片），`backend` 填该服务的 id 即选中它。运行时与 DeepSeek 相同：只在子进程内设置接口地址、模型与 Key，使用独立的 `.runtime/api-cli/<id>` 配置目录和 `.runtime/api-sessions-<id>.json` 会话索引，不修改原 Claude 设置。勾选“模型支持图片”后才提供截图识别。正在使用的服务不能删除；删除其他服务时同时删除其 `.key` 文件。
 
 新的 Key 写入 `.runtime` 中独立 `.key` 文件，不进入配置 JSON、进程命令行参数或日志；旧文件保留以便原任务及回退使用。原 Claude 用户设置不被修改；自定义 Claude 使用独立 `.runtime/claude-api-cli` 与 `.runtime/claude-api-sessions.json`，取消自定义选项后恢复原设置和原会话。
 

@@ -110,7 +110,7 @@ $window.Add_FormClosing({param($sender,$event)
   if($script:dirty -and -not $Verify -and -not $Preview -and [Windows.Forms.MessageBox]::Show($window,'有未保存的收藏或别名，确定放弃吗？','常用应用','YesNo','Question') -ne 'Yes'){$event.Cancel=$true}
 })
 $window.Add_FormClosed({$timer.Stop();$timer.Dispose();if($script:job){$script:job.process.Dispose()}})
-[TrayDesign]::StyleFields($window);[TrayDesign]::SaveShortcut($window,$save);Update-AppActions
+[TrayDesign]::StyleFields($window);foreach($c in @($list,$aliases)){$null=[TrayDesign]::Frame($c)};[TrayDesign]::SaveShortcut($window,$save);Update-AppActions
 if($Verify){
  # Offline visual/control test: no discovery, process execution, or persisted writes.
  Populate ([pscustomobject]@{revision=0;apps=@([pscustomobject]@{id='fake';name='示例应用';target='隔离测试';available=$true;favorite=$true;aliases=@('示例')})})

@@ -349,6 +349,8 @@ $copy.Add_Click({
  }
 })
 [TrayDesign]::StyleFields($window)
+# Rounded frames for the main inputs and lists; tab panes keep the tab control's border.
+foreach($c in @($search,$list,$details,$outputList)){$null=[TrayDesign]::Frame($c)}
 $title.Anchor='Top,Left,Right';$intro.Anchor='Top,Left,Right';$heading.Anchor='Top,Left,Right'
 $window.AutoScaleDimensions=New-Object Drawing.SizeF(96,96);$window.PerformAutoScale()
 Register-UiPreferences $window $Root 'task-history' (-not ($Verify -or $Preview)) $tabs @{filter=$filter} @{tasks=$list;outputs=$outputList}

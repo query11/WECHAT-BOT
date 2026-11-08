@@ -74,7 +74,7 @@ function Layout-RunCenter {
         Ui-Bounds $modelHead 44 8 ($right-156) 28
         Ui-Bounds $settingsButton ($right-104) 6 88 32
         $chip=[Math]::Floor(($right-40)/16)*8
-        Ui-Bounds $deepseekButton 16 44 $chip 32;Ui-Bounds $claudeButton (24+$chip) 44 ($right-40-$chip) 32
+        Ui-Bounds $backendPicker 16 44 ($right-32) 32
         Ui-Bounds $modelName 16 84 ($right-32) 24;Ui-Bounds $modelStatus 16 110 ($right-32) ($modelHeight-118)
         foreach($c in @($modelRule,$modelCaption)){$c.Visible=$false;Ui-Bounds $c 0 0 1 1}
         Ui-Bounds $maintenanceCard $rx ($bottom-$maintenanceHeight) $right $maintenanceHeight

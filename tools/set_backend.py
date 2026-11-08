@@ -9,12 +9,12 @@ import tempfile
 PROJECT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(PROJECT))
 from deepseek_runner import MODELS
+import api_profiles
 from key_vault import read_secret
 
 
 def set_backend(backend, config_path=None):
-    if backend not in ("claude", "deepseek"):
-        raise ValueError("后端只能是 claude 或 deepseek")
+    backend = str(backend).lower()
     path = Path(config_path) if config_path is not None else PROJECT / "config.json"
     try:
         config = json.loads(path.read_text(encoding="utf-8-sig"))
@@ -22,6 +22,19 @@ def set_backend(backend, config_path=None):
         raise ValueError("现有配置无法读取或不是合法 JSON；未修改") from None
     if not isinstance(config, dict):
         raise ValueError("现有配置必须是 JSON 对象；未修改")
+    if backend not in api_profiles.backend_ids(config):
+        raise ValueError("后端只能是 claude、deepseek 或 api_profiles 中已保存的接口 id；未修改")
+    if backend not in api_profiles.RESERVED:
+        profile = api_profiles.find(config, backend)
+        key_path = path.resolve().parent / str(profile.get("key_file") or "")
+        if not profile.get("key_file") or key_path.suffix.lower() != ".key":
+            raise ValueError("%s 尚未配置 API Key；未修改" % profile["name"])
+        try:
+            key = read_secret(key_path)
+        except (OSError, UnicodeError, TypeError, ValueError):
+            raise ValueError("%s 密钥未配置或无法读取；未修改" % profile["name"]) from None
+        if not isinstance(key, str) or not key or any(c.isspace() for c in key):
+            raise ValueError("%s 密钥格式无效；未修改" % profile["name"])
     if backend == "deepseek":
         options = config.get("deepseek") or {}
         if not isinstance(options, dict) or options.get("model", "deepseek-flash") not in MODELS:
@@ -60,7 +73,7 @@ def set_backend(backend, config_path=None):
 
 def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("backend", choices=("claude", "deepseek"))
+    parser.add_argument("backend", help="claude、deepseek 或 api_profiles 中已保存的接口 id")
     parser.add_argument("--config", help="现有配置文件路径")
     args = parser.parse_args(argv)
     try:

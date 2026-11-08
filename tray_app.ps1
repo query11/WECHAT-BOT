@@ -180,18 +180,14 @@ $lastTime=Label '尚未成功通信' 376 184 136 32 10.5 $statusCard
 $lastTime.Font=New-Object Drawing.Font('Microsoft YaHei UI',10.5,[Drawing.FontStyle]::Bold)
 $modelCard=Card 576 104 360 304
 $modelHead=Card-Heading $modelCard '当前模型' 'cube'
-$deepseekButton=New-Object TrayButton
-$deepseekButton.Text='DeepSeek';$deepseekButton.SetBounds(24,64,152,40);$deepseekButton.Quiet=$true;$deepseekButton.ToggleChip=$true
-$deepseekButton.Font=New-Object Drawing.Font('Microsoft YaHei UI',10.5)
-$deepseekButton.AccessibleName='切换到 DeepSeek 官方后端'
-$deepseekButton.Add_Click({Request-Backend 'deepseek'});$modelCard.Controls.Add($deepseekButton)
-$claudeButton=New-Object TrayButton
-$claudeButton.Text='Claude';$claudeButton.SetBounds(184,64,152,40);$claudeButton.Quiet=$true;$claudeButton.ToggleChip=$true
-$claudeButton.Font=New-Object Drawing.Font('Microsoft YaHei UI',10.5)
-$claudeButton.AccessibleName='切换到 Claude 后端'
-$claudeButton.Add_Click({Request-Backend 'claude'});$modelCard.Controls.Add($claudeButton)
-$backendTip.SetToolTip($deepseekButton,'切换后立即生效；两套对话分别保留。任务处理中暂不可切换。')
-$backendTip.SetToolTip($claudeButton,'使用已保存的 Claude 配置；两套对话分别保留。任务处理中暂不可切换。')
+# One picker for every saved backend; its list comes from the bridge status (backends).
+$backendPicker=New-Object TrayButton;$backendPicker.Text='正在读取…';$backendPicker.DropDown=$true
+$backendPicker.SetBounds(24,64,312,40);$backendPicker.Font=New-Object Drawing.Font('Microsoft YaHei UI',10.5)
+$backendPicker.AccessibleName='选择模型后端';$modelCard.Controls.Add($backendPicker)
+$backendPickerMenu=New-Object Windows.Forms.ContextMenuStrip;$backendPickerMenu.Font=New-Object Drawing.Font('Microsoft YaHei UI',10)
+$backendPicker.Add_Click({$backendPickerMenu.Show($backendPicker,(New-Object Drawing.Point(0,$backendPicker.Height)))})
+$backendTip.SetToolTip($backendPicker,'选择模型后端；切换立即生效，各后端对话分别保留。任务处理中暂不可切换。')
+$script:backendSignature=''
 $modelRule=Divider $modelCard 24 120 312
 $modelCaption=Label '当前模型' 24 128 312 24 9.75 $modelCard;$modelCaption.ForeColor=$muted
 $modelName=Label '正在读取…' 24 152 312 32 12 $modelCard;$modelName.Font=New-Object Drawing.Font('Microsoft YaHei UI',12,[Drawing.FontStyle]::Bold)
@@ -308,7 +304,7 @@ $script:lastState=''; $script:startAt=0
 $script:lastFault=$false;$script:connectionFeedback=$false
 $connectionBadge.TabStop=$false
 $statusCard.TabIndex=0;$taskCard.TabIndex=1;$logCard.TabIndex=2;$modelCard.TabIndex=3;$entryCard.TabIndex=4;$maintenanceCard.TabIndex=5
-$deepseekButton.TabIndex=0;$claudeButton.TabIndex=1;$settingsButton.TabIndex=2;$historyButton.TabIndex=0;$records.TabIndex=1;$appsButton.TabIndex=0;$memoryButton.TabIndex=1;$templatesButton.TabIndex=2;$restartButton.TabIndex=0;$logButton.TabIndex=1
+$backendPicker.TabIndex=0;$settingsButton.TabIndex=1;$historyButton.TabIndex=0;$records.TabIndex=1;$appsButton.TabIndex=0;$memoryButton.TabIndex=1;$templatesButton.TabIndex=2;$restartButton.TabIndex=0;$logButton.TabIndex=1
 function Set-Feedback($text,$tone='info') {
     $script:connectionFeedback=$false
     $hint.Text=$text
@@ -392,17 +388,40 @@ function Request-Backend($backend) {
     if (-not $script:snapshot -or -not $script:snapshot.backend_switch_available) {
         Set-Feedback '请等待任务和附件处理结束，再切换模型后端'; return
     }
-    if ([string]$script:snapshot.backend -ieq $backend) { Set-Feedback '当前已经使用这个后端'; return }
+    if ((Current-BackendId $script:snapshot) -ieq $backend) { Set-Feedback '当前已经使用这个后端'; return }
     Send-Control ('backend:'+$backend)
+}
+function Current-BackendId($s) {
+    if(-not $s){return ''}
+    if($s.backend_id){return [string]$s.backend_id}
+    # Older bridges only report the display name of the two built-in backends.
+    if([string]$s.backend -ieq 'deepseek'){return 'deepseek'};return 'claude'
+}
+function Update-BackendMenus($s,$current,$ready) {
+    $items=@($s.backends | Where-Object {$_})
+    if(-not $items.Count){$items=@([pscustomobject]@{id='claude';name='Claude';model=''},[pscustomobject]@{id='deepseek';name='DeepSeek';model=''})}
+    $signature=($items|ConvertTo-Json -Compress)+'|'+$current
+    if($signature -ne $script:backendSignature){
+        $script:backendSignature=$signature
+        foreach($target in @($backendPickerMenu.Items,$backendMenu.DropDownItems)){
+            $target.Clear()
+            foreach($b in $items){
+                $item=Add-MenuItem $target ([string]$b.name) '' {Request-Backend ([string]$this.Tag)}
+                $item.Tag=[string]$b.id;$item.ShortcutKeyDisplayString=[string]$b.model;$item.Checked=([string]$b.id -eq $current)
+            }
+        }
+        Add-MenuSeparator $backendPickerMenu.Items
+        $null=Add-MenuItem $backendPickerMenu.Items '管理后端…' 'settings' {Open-UtilityWindow 'backend_editor.ps1' '后端配置'}
+        [TrayMenuStyle]::Apply($backendPickerMenu,$menuScale);[TrayMenuStyle]::Apply($backendMenu.DropDown,$menuScale)
+    }
+    foreach($item in @($backendPickerMenu.Items)+@($backendMenu.DropDownItems)){if($item.Tag){$item.Enabled=[bool]$ready}}
 }
 function Refresh-Backend($s,$alive) {
     $ready=$alive -and $s -and $s.backend_switch_available -and (-not $script:pending) -and $script:lastState -notin @('stopped','error-stale','stopping')
-    $current=if($alive -and $s -and $script:lastState -notin @('stopped','error-stale')){[string]$s.backend}else{''}
-    $deepseekButton.Enabled=[bool]$ready;$claudeButton.Enabled=[bool]$ready
-    $deepseekButton.Primary=($current -ieq 'deepseek');$claudeButton.Primary=($current -ieq 'claude')
-    $deepseekButton.Invalidate();$claudeButton.Invalidate()
-    if($deepseekMenu){$deepseekMenu.Checked=$deepseekButton.Primary;$deepseekMenu.Enabled=[bool]$ready}
-    if($claudeMenu){$claudeMenu.Checked=$claudeButton.Primary;$claudeMenu.Enabled=[bool]$ready}
+    $shown=$alive -and $s -and $script:lastState -notin @('stopped','error-stale')
+    $current=if($shown){Current-BackendId $s}else{''}
+    $backendPicker.Enabled=[bool]$ready;$backendPicker.Text=if($shown){[string]$s.backend}else{'后台未运行'};$backendPicker.Invalidate()
+    if($s){Update-BackendMenus $s $current $ready}
 }
 function Request-Exit {
     $alive=$script:snapshot -and $script:snapshot.pid -gt 0 -and (Get-Process -Id $script:snapshot.pid -ErrorAction SilentlyContinue)
@@ -449,8 +468,6 @@ $null=Add-MenuItem $menu.Items '任务记录' 'history' {Open-UtilityWindow 'tas
 Add-MenuSeparator $menu.Items
 $settingsMenu=Add-MenuItem $menu.Items '设置' 'settings' $null
 $backendMenu=Add-MenuItem $settingsMenu.DropDownItems '模型后端' 'cube' $null
-$deepseekMenu=Add-MenuItem $backendMenu.DropDownItems 'DeepSeek 官方' '' {Request-Backend 'deepseek'}
-$claudeMenu=Add-MenuItem $backendMenu.DropDownItems 'Claude' '' {Request-Backend 'claude'}
 $null=Add-MenuItem $settingsMenu.DropDownItems '后端配置' 'settings' {Open-UtilityWindow 'backend_editor.ps1' '后端配置'}
 Add-MenuSeparator $settingsMenu.DropDownItems
 $null=Add-MenuItem $settingsMenu.DropDownItems '任务模板' 'log' {Open-UtilityWindow 'template_editor.ps1' '任务模板'}
@@ -719,28 +736,31 @@ if($VerifyWindows){
   }
   Write-Output 'PASS close-to-tray: form hidden and not disposed'
   if($VerifyBackend){
-   $originalBackend=[string]$script:snapshot.backend
+   $originalBackend=Current-BackendId $script:snapshot
    $originalPid=$script:snapshot.pid
    try {
     $form.Show();[Windows.Forms.Application]::DoEvents();Refresh-State
     foreach($target in @('claude','deepseek')){
-     if($target -eq 'claude'){$claudeButton.PerformClick()}else{$deepseekButton.PerformClick()}
+     $choice=@($backendPickerMenu.Items | Where-Object {$_.Tag -eq $target})[0]
+     if(-not $choice){throw ('Backend picker lacks '+$target)}
+     $choice.PerformClick()
      $deadline=[DateTime]::UtcNow.AddSeconds(10)
-     while(($script:pending -or [string]$script:snapshot.backend -ine $target) -and [DateTime]::UtcNow -lt $deadline){
+     while(($script:pending -or (Current-BackendId $script:snapshot) -ne $target) -and [DateTime]::UtcNow -lt $deadline){
       Start-Sleep -Milliseconds 150;Refresh-State;[Windows.Forms.Application]::DoEvents()
      }
      Refresh-State
      $saved=Get-Content -LiteralPath (Join-Path $root 'config.json') -Raw -Encoding UTF8 | ConvertFrom-Json
-     if($script:pending -or [string]$script:snapshot.backend -ine $target -or $saved.backend -ne $target -or $script:snapshot.pid -ne $originalPid){throw ('Backend UI switch did not apply: '+$hint.Text)}
-     if(($target -eq 'claude' -and (-not $claudeButton.Primary -or -not $claudeMenu.Checked)) -or ($target -eq 'deepseek' -and (-not $deepseekButton.Primary -or -not $deepseekMenu.Checked))){throw 'Backend selection did not match actual state'}
+     if($script:pending -or (Current-BackendId $script:snapshot) -ne $target -or $saved.backend -ne $target -or $script:snapshot.pid -ne $originalPid){throw ('Backend UI switch did not apply: '+$hint.Text)}
+     $pickerChoice=@($backendPickerMenu.Items | Where-Object {$_.Tag -eq $target})[0];$trayChoice=@($backendMenu.DropDownItems | Where-Object {$_.Tag -eq $target})[0]
+     if($backendPicker.Text -ne [string]$script:snapshot.backend -or -not $pickerChoice.Checked -or -not $trayChoice.Checked){throw 'Backend selection did not match actual state'}
      Write-Output ('PASS backend button, tray selection, saved config and same PID: '+$target)
     }
    } finally {
-    if([string]$script:snapshot.backend -ine $originalBackend){
-     Request-Backend $originalBackend.ToLowerInvariant()
+    if((Current-BackendId $script:snapshot) -ne $originalBackend){
+     Request-Backend $originalBackend
      $deadline=[DateTime]::UtcNow.AddSeconds(10)
      while($script:pending -and [DateTime]::UtcNow -lt $deadline){Start-Sleep -Milliseconds 150;Refresh-State}
-     if([string]$script:snapshot.backend -ine $originalBackend){throw 'Original backend was not restored'}
+     if((Current-BackendId $script:snapshot) -ne $originalBackend){throw 'Original backend was not restored'}
     }
    }
   }
@@ -768,7 +788,7 @@ if($VerifyWindows){
    $expected=switch($sampleState){'standby'{'wake'};'working'{'standby'};'busy'{'standby'};'draining'{'wake'};'stopped'{'start'};default{''}}
    if([string]$script:wakeButton.Tag -ne $expected){throw ('Wrong primary action: '+$sampleState)}
    if($cancelButton.Enabled -ne ($sampleState -in @('busy','draining'))){throw ('Wrong cancel availability: '+$sampleState)}
-   if($sampleState -in @('busy','draining') -and ($restartButton.Enabled -or $deepseekButton.Enabled)){throw 'Busy maintenance/model switch must be disabled'}
+   if($sampleState -in @('busy','draining') -and ($restartButton.Enabled -or $backendPicker.Enabled)){throw 'Busy maintenance/model switch must be disabled'}
    if($sampleState -in @('reconnecting','error') -and $script:wakeButton.Enabled){throw 'Wake must wait for connection'}
    if($sampleState -eq 'standby'){$standbyIndicatorColor=$script:statusColor;$standbyTextColor=$state.ForeColor;$connectedBadgeColor=$connectionBadge.StatusColor}
    if($sampleState -eq 'working'){
@@ -792,7 +812,7 @@ if($VerifyWindows){
   Show-Snapshot $script:snapshot $true $now
   if($hint.Text -ne '设置窗口已打开'){throw 'Refresh overwrote action feedback'}
   $script:pending='isolated-ui-test';Refresh-Actions $script:snapshot $true;Refresh-Backend $script:snapshot $true
-  if($script:wakeButton.Enabled -or $cancelButton.Enabled -or $restartButton.Enabled -or $deepseekButton.Enabled){throw 'Pending operation allowed another control request'}
+  if($script:wakeButton.Enabled -or $cancelButton.Enabled -or $restartButton.Enabled -or $backendPicker.Enabled){throw 'Pending operation allowed another control request'}
   $script:pending=$null
   Write-Output 'PASS persistent action feedback and pending-operation lock'
   $script:snapshot=New-SampleSnapshot 'error' $now;Show-Snapshot $script:snapshot $true $now

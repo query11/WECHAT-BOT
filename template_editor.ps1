@@ -148,7 +148,7 @@ $delete.Add_Click({if($script:current -and ($Verify -or [Windows.Forms.MessageBo
 $window.KeyPreview=$true;$window.Add_KeyDown({param($sender,$event) if($event.Control -and $event.KeyCode -eq 'S' -and $save.Enabled){$save.PerformClick();$event.SuppressKeyPress=$true}})
 $window.Add_FormClosing({param($sender,$event) if($script:job){$feedback.Text='请等待当前操作完成后关闭。';$event.Cancel=$true}elseif(-not (Discard-Changes)){$event.Cancel=$true}})
 $window.Add_Disposed({$timer.Stop();$timer.Dispose();$help.Dispose()})
-[TrayDesign]::StyleFields($window);$window.AutoScaleDimensions=New-Object Drawing.SizeF(96,96);$window.PerformAutoScale();$timer.Start()
+[TrayDesign]::StyleFields($window);$null=[TrayDesign]::Frame($list);foreach($box in @($fields.Values)){$null=[TrayDesign]::Frame($box)};$window.AutoScaleDimensions=New-Object Drawing.SizeF(96,96);$window.PerformAutoScale();$timer.Start()
 Register-UiPreferences $window $Root 'template-editor' (-not ($Verify -or $Preview)) $null @{} @{templates=$list}
 function Wait-Request {
  $deadline=[DateTime]::UtcNow.AddSeconds(30)

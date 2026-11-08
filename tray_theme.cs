@@ -120,6 +120,8 @@ public static class TrayDesign {
             } else if(kind=="shield") {
                 g.DrawPolygon(pen,new[]{new PointF(12,2),new PointF(21,6),new PointF(20,15),new PointF(17,19),new PointF(12,22),new PointF(7,19),new PointF(4,15),new PointF(3,6)});
                 g.DrawLines(pen,new[]{new PointF(8,11),new PointF(11,14),new PointF(16,9)});
+            } else if(kind=="chevron-down") {
+                g.DrawLines(pen,new[]{new PointF(6,9),new PointF(12,15),new PointF(18,9)});
             } else if(kind=="chevron") {
                 g.DrawLines(pen,new[]{new PointF(9,5),new PointF(16,12),new PointF(9,19)});
             } else if(kind=="check") {
@@ -145,6 +147,8 @@ public static class TrayDesign {
             } else if(kind=="folder") {
                 g.DrawLines(pen,new[]{new PointF(3,18),new PointF(3,6),new PointF(9,6),new PointF(11,8.5f),new PointF(21,8.5f),new PointF(21,18),new PointF(3,18)});
                 g.DrawLine(pen,3,11.5f,21,11.5f);
+            } else if(kind=="plus") {
+                g.DrawLine(pen,12,5,12,19);g.DrawLine(pen,5,12,19,12);
             } else if(kind=="bookmark") {
                 g.DrawLines(pen,new[]{new PointF(6,3),new PointF(18,3),new PointF(18,21),new PointF(12,16.5f),new PointF(6,21),new PointF(6,3)});
             } else if(kind=="clip") {
@@ -168,6 +172,22 @@ public static class TrayDesign {
             }
             if(control.HasChildren)StyleFields(control);
         }
+    }
+    // Moves an existing TextBox/ListBox/ListView into a TrayField with the same bounds, anchor and
+    // z-order. Only frame controls whose visibility the script never toggles.
+    public static TrayField Frame(Control content) {
+        var parent=content.Parent;
+        if(parent==null)return null;
+        if(parent is TrayField)return (TrayField)parent;
+        var field=new TrayField();
+        field.Bounds=content.Bounds;field.Anchor=content.Anchor;field.Dock=content.Dock;field.Margin=content.Margin;field.TabIndex=content.TabIndex;
+        // A single-line TextBox auto-sizes its own height; give the frame room around the text.
+        var box=content as TextBox;
+        if(box!=null && !box.Multiline) using(var g=Graphics.FromHwnd(IntPtr.Zero)) field.Height=Math.Max(content.Height,box.PreferredHeight+(int)(8*g.DpiX/96f));
+        int index=parent.Controls.GetChildIndex(content);
+        parent.Controls.Remove(content);field.Attach(content);
+        parent.Controls.Add(field);parent.Controls.SetChildIndex(field,index);
+        return field;
     }
     public static void SaveShortcut(Form window, Button save) {
         window.KeyPreview=true;
@@ -199,6 +219,90 @@ public static class TrayDesign {
         }
     }
 }
+// Rounded input frame around a borderless TextBox or list; blue border while focused.
+// TrayDesign.Frame wraps an existing control in place, so scripts keep their references.
+public class TrayField : Panel {
+    Control content;
+    public Control Content {get{return content;}}
+    public TrayField() { DoubleBuffered=true; SetStyle(ControlStyles.ResizeRedraw|ControlStyles.SupportsTransparentBackColor,true); BackColor=Color.Transparent; }
+    public TrayField(Control content) : this() { Attach(content); }
+    public void Attach(Control child) {
+        content=child;
+        var box=child as TextBox;if(box!=null)box.BorderStyle=BorderStyle.None;
+        var list=child as ListBox;if(list!=null)list.BorderStyle=BorderStyle.None;
+        var view=child as ListView;if(view!=null)view.BorderStyle=BorderStyle.None;
+        child.Anchor=AnchorStyles.Top|AnchorStyles.Left;child.Dock=DockStyle.None;
+        Controls.Add(child);
+        child.GotFocus+=Changed;child.LostFocus+=Changed;child.EnabledChanged+=Changed;
+        Changed(this,EventArgs.Empty);PerformLayout();
+    }
+    bool Active {get{return Enabled && content!=null && content.Enabled;}}
+    void Changed(object sender,EventArgs e) {
+        if(content!=null)content.BackColor=Active?Color.White:Color.FromArgb(246,247,249);
+        Invalidate();
+    }
+    static float ScreenScale() { using(var g=Graphics.FromHwnd(IntPtr.Zero))return g.DpiX/96f; }
+    protected override void OnLayout(LayoutEventArgs e) {
+        base.OnLayout(e);
+        if(content==null)return;
+        float s=ScreenScale();
+        var box=content as TextBox;
+        if(box!=null && !box.Multiline) {
+            int pad=(int)(10*s),h=box.PreferredHeight;
+            content.SetBounds(pad,Math.Max(0,(Height-h)/2),Math.Max(1,Width-2*pad),h);
+        } else {
+            int pad=(int)((box!=null?6:3)*s);   // lists stay clear of the 7px corner curve
+            content.SetBounds(pad,pad,Math.Max(1,Width-2*pad),Math.Max(1,Height-2*pad));
+        }
+    }
+    protected override void OnEnabledChanged(EventArgs e) { base.OnEnabledChanged(e); Changed(this,e); }
+    protected override void OnMouseDown(MouseEventArgs e) { if(content!=null && content.CanFocus)content.Focus(); base.OnMouseDown(e); }
+    protected override void OnPaintBackground(PaintEventArgs e) {
+        var g=e.Graphics;g.Clear(TrayDesign.SurfaceFor(Parent));g.SmoothingMode=SmoothingMode.AntiAlias;float s=g.DpiX/96f;
+        bool focused=content!=null && content.ContainsFocus;
+        using(var p=TrayDesign.Round(new RectangleF(.5f,.5f,Width-1,Height-1),7*s)) {
+            using(var brush=new SolidBrush(Active?Color.White:Color.FromArgb(246,247,249)))g.FillPath(brush,p);
+            using(var pen=new Pen(focused?TrayDesign.Blue:Color.FromArgb(208,216,225),focused?1.5f*s:1f))g.DrawPath(pen,p);
+        }
+    }
+}
+public class TrayListItem {
+    public string Title {get;set;}
+    public string Detail {get;set;}
+    public string Badge {get;set;}
+    public Color BadgeColor {get;set;}
+    public object Tag {get;set;}
+    public override string ToString(){return Title;}
+}
+// Two-line owner-drawn list: title, muted detail and an optional pill on the right.
+public class TrayList : ListBox {
+    public TrayList() { DrawMode=DrawMode.OwnerDrawFixed; BorderStyle=BorderStyle.None; IntegralHeight=false; BackColor=Color.White; }
+    protected override void OnDrawItem(DrawItemEventArgs e) {
+        var g=e.Graphics;
+        using(var bg=new SolidBrush(BackColor))g.FillRectangle(bg,e.Bounds);
+        if(e.Index<0 || e.Index>=Items.Count)return;
+        var item=Items[e.Index] as TrayListItem;
+        string title=item!=null?item.Title:Convert.ToString(Items[e.Index]),detail=item!=null?item.Detail:"",badge=item!=null?item.Badge:"";
+        g.SmoothingMode=SmoothingMode.AntiAlias;float s=g.DpiX/96f;
+        bool selected=(e.State&DrawItemState.Selected)!=0;
+        var face=new RectangleF(e.Bounds.X+2*s,e.Bounds.Y+2*s,e.Bounds.Width-4*s,e.Bounds.Height-4*s);
+        if(selected) using(var p=TrayDesign.Round(face,8*s)) using(var brush=new SolidBrush(TrayDesign.BlueSoft))g.FillPath(brush,p);
+        int left=e.Bounds.X+(int)(12*s),right=e.Bounds.Right-(int)(10*s),badgeWidth=0;
+        if(!String.IsNullOrEmpty(badge)) using(var small=new Font(Font.FontFamily,Math.Max(8f,Font.Size-1.5f))) {
+            var size=TextRenderer.MeasureText(badge,small);badgeWidth=size.Width+(int)(12*s);
+            var pill=new RectangleF(right-badgeWidth,e.Bounds.Y+(e.Bounds.Height-size.Height-4*s)/2,badgeWidth,size.Height+4*s);
+            Color tone=item.BadgeColor.IsEmpty?TrayDesign.Success:item.BadgeColor;
+            using(var p=TrayDesign.Round(pill,pill.Height/2)) using(var brush=new SolidBrush(TrayDesign.Mix(Color.White,tone,.14f)))g.FillPath(brush,p);
+            TextRenderer.DrawText(g,badge,small,Rectangle.Round(pill),TrayDesign.Readable(tone,Color.White),TextFormatFlags.HorizontalCenter|TextFormatFlags.VerticalCenter|TextFormatFlags.NoPadding);
+            badgeWidth+=(int)(8*s);
+        }
+        int width=Math.Max(0,right-left-badgeWidth),half=e.Bounds.Height/2;
+        using(var bold=new Font(Font,FontStyle.Bold))
+            TextRenderer.DrawText(g,title,bold,new Rectangle(left,e.Bounds.Y+(int)(4*s),width,half-(int)(2*s)),selected?TrayDesign.Blue:TrayDesign.Heading,TextFormatFlags.Left|TextFormatFlags.Bottom|TextFormatFlags.EndEllipsis);
+        using(var small=new Font(Font.FontFamily,Math.Max(8f,Font.Size-1f)))
+            TextRenderer.DrawText(g,detail,small,new Rectangle(left,e.Bounds.Y+half+(int)(2*s),width,half-(int)(6*s)),TrayDesign.MutedColor,TextFormatFlags.Left|TextFormatFlags.Top|TextFormatFlags.EndEllipsis);
+    }
+}
 // Tray context menu: white surface, rounded hover, inset separators, palette colors.
 public class TrayMenuColors : ProfessionalColorTable {
     public override Color ToolStripDropDownBackground {get{return TrayDesign.CardColor;}}
@@ -228,7 +332,9 @@ public class TrayMenuRenderer : ToolStripProfessionalRenderer {
         using(var brush=new SolidBrush(e.Item.Enabled?TrayDesign.BlueSoft:Color.FromArgb(246,247,249)))g.FillPath(brush,path);
     }
     protected override void OnRenderItemText(ToolStripItemTextRenderEventArgs e) {
-        e.TextColor=!e.Item.Enabled?TrayDesign.DisabledText:(e.Item is ToolStripLabel?TrayDesign.Heading:TrayDesign.TextColor);
+        var menuItem=e.Item as ToolStripMenuItem;
+        bool shortcut=menuItem!=null && !String.IsNullOrEmpty(e.Text) && e.Text==menuItem.ShortcutKeyDisplayString;
+        e.TextColor=!e.Item.Enabled?TrayDesign.DisabledText:(shortcut?TrayDesign.MutedColor:(e.Item is ToolStripLabel?TrayDesign.Heading:TrayDesign.TextColor));
         base.OnRenderItemText(e);
     }
     protected override void OnRenderSeparator(ToolStripSeparatorRenderEventArgs e) {
@@ -309,6 +415,8 @@ public class TrayButton : Button {
     public bool Danger {get;set;}
     public bool Navigate {get;set;}
     public bool ToggleChip {get;set;}
+    // Opens a list: left-aligned text with a down arrow on the right.
+    public bool DropDown {get;set;}
     // Borderless text action for card headers; keeps the card from filling up with outlines.
     public bool Link {get;set;}
     public bool Depth {get;set;}
@@ -374,7 +482,7 @@ public class TrayButton : Button {
         }
         bool described=!String.IsNullOrEmpty(Description),icon=!String.IsNullOrEmpty(IconKind);
         int left=icon?(int)((described?48:40)*scale):(int)(12*scale);
-        bool trailing=Navigate || ToggleChip;
+        bool trailing=Navigate || ToggleChip || DropDown;
         int right=(int)((trailing?36:12)*scale);
         if(icon){
             float glyphSize=20*scale,iconLeft=16*scale;
@@ -391,9 +499,9 @@ public class TrayButton : Button {
                 TextRenderer.DrawText(e.Graphics,Description,small,new Rectangle(left,top+titleHeight+gap,width,detailHeight),detailColor,TextFormatFlags.Left|TextFormatFlags.VerticalCenter|TextFormatFlags.EndEllipsis);
             }
         }else TextRenderer.DrawText(e.Graphics,Text,Font,icon || trailing?new Rectangle(left,0,Math.Max(0,Width-left-right),Height):ClientRectangle,textColor,(icon || trailing?TextFormatFlags.Left:TextFormatFlags.HorizontalCenter)|TextFormatFlags.VerticalCenter|TextFormatFlags.EndEllipsis);
-        if(Navigate || (ToggleChip && Primary)){
+        if(Navigate || DropDown || (ToggleChip && Primary)){
             var saved=e.Graphics.Save();float glyphSize=16*scale;e.Graphics.TranslateTransform(Width-28*scale,(Height-glyphSize)/2);e.Graphics.ScaleTransform(glyphSize/24,glyphSize/24);
-            TrayDesign.DrawGlyph(e.Graphics,Navigate?"chevron":"check",Navigate && !strong?TrayDesign.MutedColor:textColor);e.Graphics.Restore(saved);
+            TrayDesign.DrawGlyph(e.Graphics,DropDown?"chevron-down":(Navigate?"chevron":"check"),(Navigate || DropDown) && !strong?TrayDesign.MutedColor:textColor);e.Graphics.Restore(saved);
         }
         if(Focused && ShowFocusCues){
             float inset=3.5f*scale;
