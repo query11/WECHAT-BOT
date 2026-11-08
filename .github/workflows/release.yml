@@ -10,8 +10,14 @@ on:
 permissions:
   contents: read
 
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: ${{ !startsWith(github.ref, 'refs/tags/') }}
+
 jobs:
   verification:
+    # Branches/PRs already run verify.yml; a tag must rerun it before publishing.
+    if: startsWith(github.ref, 'refs/tags/v')
     uses: ./.github/workflows/verify.yml
   package:
     runs-on: ubuntu-latest

@@ -68,15 +68,18 @@ try {
     Run-Exe $ps ('-NoProfile -STA -ExecutionPolicy Bypass -File "' + (Join-Path $install 'desktop\tray_app.ps1') + '" -VerifyUX')
     $shell = New-Object -ComObject WScript.Shell
     $shortcuts = @()
+    $linkName = [string][char]0x5FAE + [char]0x4FE1 + [char]0x52A9 + [char]0x624B + '.lnk'
     foreach ($folder in @('Programs','Desktop')) {
-        $shortcuts += @(Get-ChildItem -LiteralPath ([Environment]::GetFolderPath($folder)) -Filter '*.lnk' | Where-Object {
-            $link = $shell.CreateShortcut($_.FullName)
-            $link.Arguments.Contains((Join-Path $install 'desktop\launch_tray.ps1'))
-        })
+        $shortcutPath = Join-Path ([Environment]::GetFolderPath($folder)) $linkName
+        Assert (Test-Path -LiteralPath $shortcutPath) ('Missing shortcut: ' + $shortcutPath)
+        $shortcuts += Get-Item -LiteralPath $shortcutPath
     }
     Assert ($shortcuts.Count -eq 2) 'Start Menu and optional desktop shortcuts missing'
     foreach ($shortcut in $shortcuts) {
-        Assert ($shell.CreateShortcut($shortcut.FullName).WorkingDirectory -eq $install) 'Shortcut working directory wrong'
+        $link = $shell.CreateShortcut($shortcut.FullName)
+        @{path=$shortcut.FullName; target=$link.TargetPath; arguments=$link.Arguments; working=$link.WorkingDirectory} | ConvertTo-Json | Add-Content (Join-Path $logs 'shortcuts.json') -Encoding UTF8
+        Assert ($link.Arguments.IndexOf((Join-Path $install 'desktop\launch_tray.ps1'), [StringComparison]::OrdinalIgnoreCase) -ge 0) 'Shortcut arguments wrong; see shortcuts.json'
+        Assert ($link.WorkingDirectory -eq $install) 'Shortcut working directory wrong'
     }
     $cfg = @{workdir=$external; inbox=@{dir=$external}; smoke='preserve me'} | ConvertTo-Json
     [IO.File]::WriteAllText((Join-Path $install 'config.json'), $cfg)
