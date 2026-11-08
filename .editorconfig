@@ -18,3 +18,9 @@ end_of_line = lf
 # Windows PowerShell 5.1 also reads this file during setup.
 [config.example.json]
 charset = utf-8-bom
+
+# WinForms scripts with Chinese UI text need a BOM for Windows PowerShell 5.1.
+# Keep this list in sync with test_scripts_are_ascii_and_read_utf8 (tests/selftest_ops.py);
+# every other .ps1 stays pure ASCII.
+[{tray_app,memory_editor,backend_editor,app_settings,task_history,template_editor,workflow_window,workbench_layout,result_revision_ui,desktop_files_ui,schedule_ui}.ps1]
+charset = utf-8-bom

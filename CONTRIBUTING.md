@@ -26,7 +26,7 @@ python -m unittest tests.selftest_task_journal tests.selftest_desktop_files
 python selftest.py
 ```
 
-不要只运行默认 `unittest discover` 就认为全量通过：本项目同时有函数式检查和 unittest，用例清单由验证入口明确登记。新增测试需加入合适的套件；`FAST_MODULES` 与 `tools/pre-commit.ps1` 的清单必须一致。
+不要只运行默认 `unittest discover` 就认为全量通过：本项目同时有函数式检查和 unittest，用例清单由验证入口明确登记。新增 `tests/selftest_*.py` 必须加入合适的套件（或由 `selftest.py` 导入），否则 `tests.selftest_verify` 会失败；`FAST_MODULES` 与 `tools/pre-commit.ps1` 的清单必须一致。
 
 报告保存到 `.runtime/verification/<轮次>/`。检查条目数与 unittest 用例数分开统计；跳过、超时、无有效用例和失败必须如实报告。离线通过后，影响微信真实行为的改动仍按[实机验收](docs/testing/实机验收.md)核对。
 
@@ -44,7 +44,7 @@ GitHub Actions 在 Windows 上运行离线回归，并保存验证报告。进�
 
 - 延用现有模块职责，避免在界面脚本重复实现后台任务和权限规则。
 - 不更改运行文件的位置，除非同步处理脚本入口、配置定位、模块导入及启动验收。
-- PowerShell 脚本延用 ASCII 源码约定，中文界面文本通过现有编码方式表示，兼容 PowerShell 5.1。
+- 含中文界面文本的 WinForms 脚本（清单见 `.editorconfig`）使用带 BOM 的 UTF-8，其余 `.ps1` 保持纯 ASCII，兼容 Windows PowerShell 5.1；`tests/selftest_ops.py` 会检查。
 - JSON 和 Markdown 使用 UTF-8；示例配置使用通用目录和空凭据。
 - 公开文档新增内容放在 `docs/` 对应分类，并更新[文档索引](docs/README.md)。
 - 不提交真实配置、API Key、固定记忆、聊天、截图、生成文件、日志或 `.runtime/`。

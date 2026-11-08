@@ -27,3 +27,10 @@
 迁移同步更新测试导入、仓库根路径、模拟子进程工作目录、钩子清单和文档链接。通过统一入口执行离线及 Windows 进程隔离检查。GitHub Actions 使用 Windows 执行离线回归。
 
 本次整理不代表重新完成微信手机实机验收，也不把历史测试记录视为当前电脑的验证结果。
+
+## 2026-11-08 补充整理
+
+- `tools/verify.py` 的 offline 套件补登记 18 个此前未进入任何入口的测试模块（共 134 个用例），CI 现在会执行它们。其中 `tests.selftest_task_control` 的一个用例因任务前缀变化已过期，按原意修正为匹配任务正文结尾。
+- 新增 `unregistered_test_modules()` 检查：`tests/selftest_*.py` 既未登记套件、也未被 `selftest.py` 导入时，`tests.selftest_verify` 失败。
+- `.editorconfig` 为含中文界面的 WinForms 脚本声明 `utf-8-bom`，避免编辑器保存时去掉 BOM 导致 Windows PowerShell 5.1 解码错误；贡献指南同步写明实际编码规则。
+- 运行模块仍保留在根目录：PowerShell 入口、快捷方式和自启动依赖现有路径，搬迁需要 Windows 实机验收，本轮不做。
