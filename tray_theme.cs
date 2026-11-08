@@ -5,11 +5,38 @@ using System.Runtime.InteropServices;
 using System.Windows.Forms;
 
 public static class TrayDesign {
-    public static readonly Color Blue=Color.FromArgb(74,144,226);
-    public static readonly Color TextColor=Color.FromArgb(44,62,80);
-    public static readonly Color MutedColor=Color.FromArgb(149,165,166);
-    public static readonly Color CardColor=Color.FromArgb(248,249,250);
+    // Shared palette for every window. Text tokens keep at least 4.5:1 contrast on
+    // white cards and on PageColor; indicator tokens are for dots and icons only.
+    public static readonly Color Blue=Color.FromArgb(32,108,198);          // #206CC6, white text 5.2:1
+    public static readonly Color BlueSoft=Color.FromArgb(238,244,252);     // selected chips, link hover
+    public static readonly Color Heading=Color.FromArgb(25,43,69);         // #192B45
+    public static readonly Color TextColor=Color.FromArgb(44,62,80);       // #2C3E50
+    public static readonly Color MutedColor=Color.FromArgb(95,110,130);    // #5F6E82
+    public static readonly Color DisabledText=Color.FromArgb(138,150,163); // #8A96A3
+    public static readonly Color PageColor=Color.FromArgb(243,245,249);    // #F3F5F9
+    public static readonly Color CardColor=Color.White;
     public static readonly Color BorderColor=Color.FromArgb(229,234,238);
+    public static readonly Color DividerColor=Color.FromArgb(232,236,239);
+    public static readonly Color Success=Color.FromArgb(82,196,26);        // indicator
+    public static readonly Color SuccessText=Color.FromArgb(47,125,70);    // #2F7D46
+    public static readonly Color Warning=Color.FromArgb(201,134,8);        // indicator
+    public static readonly Color WarningText=Color.FromArgb(153,96,0);     // #996000
+    public static readonly Color Danger=Color.FromArgb(214,54,73);         // indicator
+    public static readonly Color DangerText=Color.FromArgb(180,35,24);     // #B42318
+    public static readonly Color Standby=Color.FromArgb(113,134,155);      // indicator
+    public static readonly Color StandbyText=Color.FromArgb(82,106,128);   // #526A80
+    static double Channel(int value) { double c=value/255.0; return c<=0.03928?c/12.92:Math.Pow((c+0.055)/1.055,2.4); }
+    static double Luminance(Color c) { return 0.2126*Channel(c.R)+0.7152*Channel(c.G)+0.0722*Channel(c.B); }
+    public static double Contrast(Color a, Color b) {
+        double x=Luminance(a),y=Luminance(b);
+        return (Math.Max(x,y)+0.05)/(Math.Min(x,y)+0.05);
+    }
+    // Darkens a bright indicator color toward TextColor until it is readable as text.
+    public static Color Readable(Color color, Color background) {
+        var result=Color.FromArgb(color.R,color.G,color.B);
+        for(int step=1;step<=10 && Contrast(result,background)<4.5;step++)result=Mix(color,TextColor,step/10f);
+        return result;
+    }
     [DllImport("user32.dll")] static extern bool SetProcessDpiAwarenessContext(IntPtr value);
     public static void EnableDpi() { try { SetProcessDpiAwarenessContext(new IntPtr(-4)); } catch {} }
     public static GraphicsPath Round(RectangleF r, float radius) {
@@ -144,12 +171,15 @@ public class TrayBadge : Control {
     public bool Navigate {get;set;}
     public TrayBadge(){DoubleBuffered=true;SetStyle(ControlStyles.ResizeRedraw,true);StatusColor=TrayDesign.Blue;Font=new Font("Microsoft YaHei UI",9);}
     protected override void OnPaint(PaintEventArgs e){
-        e.Graphics.Clear(TrayDesign.SurfaceFor(Parent));e.Graphics.SmoothingMode=SmoothingMode.AntiAlias;float scale=e.Graphics.DpiX/96f;
-        using(var p=TrayDesign.Round(new RectangleF(0,0,Width-1,Height-1),Height/2f))
-        using(var brush=new SolidBrush(Color.FromArgb(13,StatusColor)))e.Graphics.FillPath(brush,p);
-        using(var brush=new SolidBrush(StatusColor))e.Graphics.FillEllipse(brush,12*scale,(Height-7*scale)/2,7*scale,7*scale);
-        TextRenderer.DrawText(e.Graphics,Text,Font,new Rectangle((int)(27*scale),0,Math.Max(0,Width-(int)((Navigate?52:34)*scale)),Height),StatusColor,TextFormatFlags.Left|TextFormatFlags.VerticalCenter|TextFormatFlags.EndEllipsis);
-        if(Navigate){var saved=e.Graphics.Save();e.Graphics.TranslateTransform(Width-28*scale,(Height-16*scale)/2);e.Graphics.ScaleTransform(16*scale/24,16*scale/24);TrayDesign.DrawGlyph(e.Graphics,"chevron",StatusColor);e.Graphics.Restore(saved);}
+        Color surface=TrayDesign.SurfaceFor(Parent),textColor=TrayDesign.Readable(StatusColor,surface);
+        e.Graphics.Clear(surface);e.Graphics.SmoothingMode=SmoothingMode.AntiAlias;float scale=e.Graphics.DpiX/96f;
+        using(var p=TrayDesign.Round(new RectangleF(.5f,.5f,Width-1,Height-1),(Height-1)/2f)) {
+            using(var brush=new SolidBrush(TrayDesign.Mix(surface,StatusColor,.08f)))e.Graphics.FillPath(brush,p);
+            using(var pen=new Pen(TrayDesign.Mix(surface,StatusColor,.22f)))e.Graphics.DrawPath(pen,p);
+        }
+        using(var brush=new SolidBrush(StatusColor))e.Graphics.FillEllipse(brush,12*scale,(Height-8*scale)/2,8*scale,8*scale);
+        TextRenderer.DrawText(e.Graphics,Text,Font,new Rectangle((int)(27*scale),0,Math.Max(0,Width-(int)((Navigate?52:34)*scale)),Height),textColor,TextFormatFlags.Left|TextFormatFlags.VerticalCenter|TextFormatFlags.EndEllipsis);
+        if(Navigate){var saved=e.Graphics.Save();e.Graphics.TranslateTransform(Width-28*scale,(Height-16*scale)/2);e.Graphics.ScaleTransform(16*scale/24,16*scale/24);TrayDesign.DrawGlyph(e.Graphics,"chevron",textColor);e.Graphics.Restore(saved);}
     }
 }
 public class TrayCard : Panel {
@@ -179,6 +209,8 @@ public class TrayButton : Button {
     public bool Danger {get;set;}
     public bool Navigate {get;set;}
     public bool ToggleChip {get;set;}
+    // Borderless text action for card headers; keeps the card from filling up with outlines.
+    public bool Link {get;set;}
     public bool Depth {get;set;}
     public string Description {get;set;}
     public string IconKind {get;set;}
@@ -197,29 +229,34 @@ public class TrayButton : Button {
     protected override void OnChangeUICues(UICuesEventArgs e){Invalidate();base.OnChangeUICues(e);}
     protected override void OnEnabledChanged(EventArgs e){pressed=false;Invalidate();base.OnEnabledChanged(e);}
     protected override void OnPaint(PaintEventArgs e){
-        e.Graphics.Clear(TrayDesign.SurfaceFor(Parent));e.Graphics.SmoothingMode=SmoothingMode.AntiAlias;
+        Color surface=TrayDesign.SurfaceFor(Parent);
+        e.Graphics.Clear(surface);e.Graphics.SmoothingMode=SmoothingMode.AntiAlias;
         float scale=e.Graphics.DpiX/96f;
         bool strong=Primary && !Quiet && !ToggleChip, selected=Primary && (Quiet || ToggleChip);
+        bool link=Link && !strong && !selected && !Danger;
         Color fill=Color.White,border=TrayDesign.BorderColor,textColor=ForeColor;
         if(strong){
-            fill=pressed?Color.FromArgb(60,127,203):(hover?Color.FromArgb(67,135,214):TrayDesign.Blue);
+            fill=pressed?TrayDesign.Mix(TrayDesign.Blue,Color.Black,.22f):(hover?TrayDesign.Mix(TrayDesign.Blue,Color.Black,.12f):TrayDesign.Blue);
             border=fill;textColor=Color.White;
         }else if(selected){
-            fill=pressed?Color.FromArgb(225,237,251):(hover?Color.FromArgb(234,242,252):Color.FromArgb(240,246,253));
-            border=Color.FromArgb(185,212,242);textColor=TrayDesign.Blue;
+            fill=pressed?TrayDesign.Mix(TrayDesign.BlueSoft,TrayDesign.Blue,.10f):(hover?TrayDesign.Mix(TrayDesign.BlueSoft,TrayDesign.Blue,.05f):TrayDesign.BlueSoft);
+            border=TrayDesign.Mix(TrayDesign.BlueSoft,TrayDesign.Blue,.28f);textColor=TrayDesign.Blue;
+        }else if(link){
+            fill=pressed?TrayDesign.Mix(TrayDesign.BlueSoft,TrayDesign.Blue,.08f):(hover?TrayDesign.BlueSoft:surface);
+            border=fill;textColor=TrayDesign.Blue;
         }else{
-            fill=pressed?Color.FromArgb(236,240,244):(hover?Color.FromArgb(250,251,252):Color.White);
+            fill=pressed?Color.FromArgb(236,240,244):(hover?Color.FromArgb(247,249,251):Color.White);
             if(hover)border=Color.FromArgb(199,210,219);
         }
         if(Danger && !strong){
             fill=pressed?Color.FromArgb(251,235,233):(hover?Color.FromArgb(255,244,242):Color.FromArgb(255,249,248));
-            border=Color.FromArgb(236,219,217);textColor=Color.FromArgb(188,92,89);
+            border=Color.FromArgb(236,212,209);textColor=TrayDesign.DangerText;
         }
         if(!Enabled){
-            fill=Color.FromArgb(243,245,247);
-            border=Color.FromArgb(233,237,240);textColor=Color.FromArgb(166,177,187);
+            fill=link?surface:Color.FromArgb(243,245,247);
+            border=link?surface:Color.FromArgb(233,237,240);textColor=TrayDesign.DisabledText;
         }
-        bool raised=Depth && Enabled && !ToggleChip;
+        bool raised=Depth && Enabled && !ToggleChip && !link;
         float shadowSpace=raised?3*scale:0;
         var face=new RectangleF(.5f,.5f+(raised && pressed?scale:0),Width-1,Math.Max(1,Height-1-shadowSpace));
         if(raised && !pressed)TrayDesign.SoftShadow(e.Graphics,face,8*scale,scale,strong?TrayDesign.Blue:Color.FromArgb(46,68,94),strong?(hover?15:11):(hover?9:6));
@@ -249,7 +286,7 @@ public class TrayButton : Button {
                 int titleHeight=(int)Math.Ceiling(Math.Max(18*scale,Font.GetHeight(e.Graphics)+scale));
                 int detailHeight=(int)Math.Ceiling(Math.Max(14*scale,small.GetHeight(e.Graphics)+scale));
                 int gap=(int)(2*scale),top=Math.Max(0,(Height-titleHeight-detailHeight-gap)/2),width=Math.Max(0,Width-left-right);
-                Color detailColor=!Enabled?Color.FromArgb(166,177,187):(strong?Color.FromArgb(235,244,255):TrayDesign.MutedColor);
+                Color detailColor=!Enabled?TrayDesign.DisabledText:(strong?Color.FromArgb(235,244,255):TrayDesign.MutedColor);
                 TextRenderer.DrawText(e.Graphics,Text,Font,new Rectangle(left,top,width,titleHeight),textColor,TextFormatFlags.Left|TextFormatFlags.VerticalCenter|TextFormatFlags.EndEllipsis);
                 TextRenderer.DrawText(e.Graphics,Description,small,new Rectangle(left,top+titleHeight+gap,width,detailHeight),detailColor,TextFormatFlags.Left|TextFormatFlags.VerticalCenter|TextFormatFlags.EndEllipsis);
             }

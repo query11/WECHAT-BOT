@@ -2,7 +2,7 @@
 $lp=$pages.localfiles
 $null=Label $lp '1  选择材料' 16 18 240 28
 $dropZone=Label $lp "把文件拖到这里`r`n也可以点击下方「选择文件」`r`n最多 12 个 · 单个 20 MB" 16 54 240 90
-$dropZone.BackColor=[Drawing.ColorTranslator]::FromHtml('#EDF4FF');$dropZone.TextAlign='MiddleCenter';$dropZone.AllowDrop=$true
+$dropZone.BackColor=[TrayDesign]::BlueSoft;$dropZone.TextAlign='MiddleCenter';$dropZone.AllowDrop=$true
 $localAdd=Button $lp '选择文件' 16 156 112
 $localRemove=Button $lp '移出清单' 140 156 116
 $localFiles=List $lp 16 200 240 236 @('文件','大小');$localFiles.ShowItemToolTips=$true;$localFiles.AllowDrop=$true

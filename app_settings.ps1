@@ -10,13 +10,13 @@ $window.AutoScaleDimensions=New-Object Drawing.SizeF(96,96);$window.AutoScaleMod
 $window.Text='微信助手 · 常用应用';$window.ClientSize=New-Object Drawing.Size(760,600)
 $window.MinimumSize=New-Object Drawing.Size(776,639);$window.StartPosition='CenterScreen'
 $iconPath=Join-Path $PSScriptRoot 'wechat-assistant-v2.ico';if(Test-Path -LiteralPath $iconPath){$window.Icon=New-Object Drawing.Icon($iconPath)}
-$window.BackColor=[Drawing.ColorTranslator]::FromHtml('#F3F5F9');$window.ForeColor=[Drawing.ColorTranslator]::FromHtml('#202D40');$window.Font=New-Object Drawing.Font('Microsoft YaHei UI',10)
+$window.BackColor=[TrayDesign]::PageColor;$window.ForeColor=[TrayDesign]::Heading;$window.Font=New-Object Drawing.Font('Microsoft YaHei UI',10)
 function Label($text,$x,$y,$w,$h,$size=10){
  $l=New-Object Windows.Forms.Label;$l.Text=$text;$l.AutoEllipsis=$true;$l.SetBounds($x,$y,$w,$h);$l.Font=New-Object Drawing.Font('Microsoft YaHei UI',$size)
  $window.Controls.Add($l);return $l
 }
 $title=Label '常用应用与别名' 26 20 690 40 16;$title.Font=New-Object Drawing.Font('Microsoft YaHei UI',16,[Drawing.FontStyle]::Bold);$title.Anchor='Top,Left,Right'
-$intro=Label '勾选收藏，常用应用优先显示。选中应用后可设置简称。' 28 68 690 30;$intro.ForeColor=[Drawing.Color]::SlateGray;$intro.Anchor='Top,Left,Right'
+$intro=Label '勾选收藏，常用应用优先显示。选中应用后可设置简称。' 28 68 690 30;$intro.ForeColor=[TrayDesign]::MutedColor;$intro.Anchor='Top,Left,Right'
 $list=New-Object Windows.Forms.ListView
 $list.SetBounds(28,110,704,310);$list.View='Details';$list.CheckBoxes=$true;$list.FullRowSelect=$true
 $list.MultiSelect=$false;$list.HideSelection=$false;$list.Anchor='Top,Bottom,Left,Right'
@@ -41,7 +41,7 @@ function Update-AppActions {
 function Commit-Aliases {
  if($script:selected -and -not $script:loading){
   $updated=@($aliases.Text -split '[,，]' | ForEach-Object {$_.Trim()} | Where-Object {$_})
-   if(($script:selected.Tag.aliases -join ',') -cne ($updated -join ',')){$script:dirty=$true;$status.Text='有未保存的收藏或别名 · Ctrl+S 保存';$status.ForeColor=[Drawing.ColorTranslator]::FromHtml('#2563EB')}
+   if(($script:selected.Tag.aliases -join ',') -cne ($updated -join ',')){$script:dirty=$true;$status.Text='有未保存的收藏或别名 · Ctrl+S 保存';$status.ForeColor=[TrayDesign]::Blue}
   $script:selected.Tag.aliases=$updated
   $script:selected.SubItems[1].Text=$script:selected.Tag.aliases -join '、'
  }
@@ -67,7 +67,7 @@ $list.Add_SelectedIndexChanged({
  try{$aliases.Text=if($script:selected){$script:selected.Tag.aliases -join ', '}else{''};$aliases.Enabled=($null -ne $script:selected -and $script:selected.Tag.available)}finally{$script:loading=$false}
 })
 $aliases.Add_TextChanged({Commit-Aliases})
-$list.Add_ItemChecked({if(-not $script:loading){$script:dirty=$true;$status.Text='有未保存的收藏或别名 · Ctrl+S 保存';$status.ForeColor=[Drawing.ColorTranslator]::FromHtml('#2563EB');Update-AppActions}})
+$list.Add_ItemChecked({if(-not $script:loading){$script:dirty=$true;$status.Text='有未保存的收藏或别名 · Ctrl+S 保存';$status.ForeColor=[TrayDesign]::Blue;Update-AppActions}})
 function Request($action){
  if($script:job){return};Commit-Aliases
  $payload=@{action=$action}

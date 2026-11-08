@@ -9,7 +9,7 @@ $window=New-Object Windows.Forms.Form
 $window.AutoScaleDimensions=New-Object Drawing.SizeF(96,96);$window.AutoScaleMode='Dpi'
 $window.Text='微信助手 · 后端配置';$window.ClientSize=New-Object Drawing.Size(680,590)
 $window.MinimumSize=New-Object Drawing.Size(696,629)
-$window.StartPosition='CenterScreen';$window.BackColor=[Drawing.ColorTranslator]::FromHtml('#F3F5F9');$window.ForeColor=[Drawing.ColorTranslator]::FromHtml('#202D40')
+$window.StartPosition='CenterScreen';$window.BackColor=[TrayDesign]::PageColor;$window.ForeColor=[TrayDesign]::Heading
 $window.Font=New-Object Drawing.Font('Microsoft YaHei UI',10)
 $window.Icon=New-Object Drawing.Icon((Join-Path $PSScriptRoot 'wechat-assistant-v2.ico'))
 function Add-Label($text,$x,$y,$w,$h,$size=10){
@@ -18,7 +18,7 @@ function Add-Label($text,$x,$y,$w,$h,$size=10){
 }
 $title=Add-Label '后端配置' 26 22 620 40 16;$title.Font=New-Object Drawing.Font('Microsoft YaHei UI',16,[Drawing.FontStyle]::Bold)
 $intro=Add-Label '分别保存两套配置；不会自动切换当前后端。' 28 68 620 28 10
-$intro.ForeColor=[Drawing.Color]::SlateGray
+$intro.ForeColor=[TrayDesign]::MutedColor
 $null=Add-Label '选择后端' 28 116 135 30
 $provider=New-Object Windows.Forms.ComboBox;$provider.DropDownStyle='DropDownList'
 $provider.Items.AddRange(@('DeepSeek 官方','Claude'));$provider.SetBounds(176,112,474,32);$window.Controls.Add($provider)
@@ -30,12 +30,12 @@ $null=Add-Label '模型名称' 28 247 135 30
 $model=New-Object Windows.Forms.ComboBox;$model.SetBounds(176,243,474,32);$window.Controls.Add($model)
 $null=Add-Label 'API Key' 28 296 135 30
 $key=New-Object Windows.Forms.TextBox;$key.SetBounds(176,292,474,30);$key.UseSystemPasswordChar=$true;$key.MaxLength=4096;$window.Controls.Add($key)
-$keyState=Add-Label '正在读取配置…' 176 330 474 44 9;$keyState.ForeColor=[Drawing.Color]::SlateGray
+$keyState=Add-Label '正在读取配置…' 176 330 474 44 9;$keyState.ForeColor=[TrayDesign]::MutedColor
 $showKey=New-Object Windows.Forms.CheckBox;$showKey.Text='显示本次输入的 Key';$showKey.SetBounds(176,378,474,28);$window.Controls.Add($showKey)
 $showKey.Add_CheckedChanged({$key.UseSystemPasswordChar=-not $showKey.Checked})
 $notice=Add-Label 'Key 留空会保留已有值。连接测试会调用所选接口，产生少量用量。' 28 426 622 44 9
-$notice.ForeColor=[Drawing.Color]::SlateGray
-$status=Add-Label '' 28 474 622 50 9;$status.ForeColor=[Drawing.ColorTranslator]::FromHtml('#2563EB')
+$notice.ForeColor=[TrayDesign]::MutedColor
+$status=Add-Label '' 28 474 622 50 9;$status.ForeColor=[TrayDesign]::Blue
 $test=New-Object TrayButton;$test.Text='测试连接';$test.SetBounds(28,538,138,36);$window.Controls.Add($test)
 $save=New-Object TrayButton;$save.Text='保存并应用';$save.Primary=$true;$save.SetBounds(484,538,166,36);$window.Controls.Add($save)
 $script:data=$null;$script:job=$null;$script:dirty=$false;$script:loading=$false;$script:controlPending=$null
@@ -65,12 +65,12 @@ function Load-Profile {
   if($isDeep -and $p.env_override){$keyState.Text='当前 Key 来自环境变量；请先移除变量，再在此更换。'}
   if(-not $isDeep -and -not $p.enabled){$keyState.Text='当前沿用原 Claude 设置，不读取或显示其中的密钥。'}
   $script:dirty=$false
-  $intro.Text='分别保存两套配置；不会自动切换当前后端。';$intro.ForeColor=[Drawing.Color]::SlateGray
+  $intro.Text='分别保存两套配置；不会自动切换当前后端。';$intro.ForeColor=[TrayDesign]::MutedColor
  }finally{$script:loading=$false;Set-EnabledState}
 }
 function Mark-ProfileDirty {
  if(-not $script:loading){
-  $script:dirty=$true;$intro.Text='有未保存的配置 · Ctrl+S 保存并应用';$intro.ForeColor=[Drawing.ColorTranslator]::FromHtml('#2563EB')
+  $script:dirty=$true;$intro.Text='有未保存的配置 · Ctrl+S 保存并应用';$intro.ForeColor=[TrayDesign]::Blue
  }
 }
 function Start-ProfileRequest($operation){

@@ -11,7 +11,7 @@ Add-Type -Path (Join-Path $PSScriptRoot 'tray_theme.cs') -ReferencedAssemblies S
 $window=New-Object Windows.Forms.Form;$window.Text='微信助手 · 快捷任务';$window.ClientSize=New-Object Drawing.Size(960,760)
 $window.MinimumSize=New-Object Drawing.Size(976,799);$window.StartPosition='CenterScreen'
 $window.AutoScaleDimensions=New-Object Drawing.SizeF(96,96);$window.AutoScaleMode='Dpi';$window.Font=New-Object Drawing.Font('Microsoft YaHei UI',10)
-$window.BackColor=[Drawing.ColorTranslator]::FromHtml('#F3F5F9');$window.ForeColor=[Drawing.ColorTranslator]::FromHtml('#192B45')
+$window.BackColor=[TrayDesign]::PageColor;$window.ForeColor=[TrayDesign]::Heading
 $icon=Join-Path $PSScriptRoot 'wechat-assistant-v2.ico';if(Test-Path -LiteralPath $icon){$window.Icon=New-Object Drawing.Icon($icon)}
 $script:layout=@{}
 function Label($parent,$text,$x,$y,$w,$h){$c=New-Object Windows.Forms.Label;$c.Text=$text;$c.SetBounds($x,$y,$w,$h);$c.AutoEllipsis=$true;$parent.Controls.Add($c);$script:layout[$c]=@($x,$y,$w,$h);return $c}
@@ -22,8 +22,8 @@ function List($parent,$x,$y,$w,$h,$columns){
  foreach($column in $columns){$null=$c.Columns.Add($column,100)};$parent.Controls.Add($c);$script:layout[$c]=@($x,$y,$w,$h);return $c
 }
 function Combo($parent,$x,$y,$w){$c=New-Object Windows.Forms.ComboBox;$c.DropDownStyle='DropDownList';$c.SetBounds($x,$y,$w,32);$parent.Controls.Add($c);$script:layout[$c]=@($x,$y,$w,32);return $c}
-$title=Label $window '快捷任务' 26 18 600 40;$title.Font=New-Object Drawing.Font('Microsoft YaHei UI',17,[Drawing.FontStyle]::Bold)
-$intro=Label $window '从模板或本机文件开始，核对后运行；也可安排定时任务、查看与修改结果。' 28 60 860 26;$intro.ForeColor=[Drawing.Color]::SlateGray
+$title=Label $window '快捷任务' 26 18 600 40;$title.Font=New-Object Drawing.Font('Microsoft YaHei UI',16,[Drawing.FontStyle]::Bold)
+$intro=Label $window '从模板或本机文件开始，核对后运行；也可安排定时任务、查看与修改结果。' 28 60 860 26;$intro.ForeColor=[TrayDesign]::MutedColor
 $null=Label $window '微信用户' 28 99 88 28
 $owner=Combo $window 120 95 590;$owner.Anchor='Top,Left,Right'
 $refresh=Button $window '重新读取' 760 93 172;$refresh.Anchor='Top,Right'
@@ -31,7 +31,7 @@ $tabs=New-Object Windows.Forms.TabControl;$tabs.SetBounds(28,136,904,548);$tabs.
 $pages=@{}
 foreach($spec in @(@('templates','运行模板'),@('batches','附件核对'),@('results','任务结果'),@('revise','继续修改'),@('localfiles','文件任务'),@('schedules','定时任务'))){$p=New-Object Windows.Forms.TabPage;$p.Text=$spec[1];$p.BackColor=[Drawing.Color]::White;$null=$tabs.TabPages.Add($p);$pages[$spec[0]]=$p}
 $tabs.SelectedTab=$pages[$Page]
-$feedback=Label $window '正在读取…' 28 698 904 48;$feedback.Anchor='Bottom,Left,Right';$feedback.ForeColor=[Drawing.Color]::SlateGray
+$feedback=Label $window '正在读取…' 28 698 904 48;$feedback.Anchor='Bottom,Left,Right';$feedback.ForeColor=[TrayDesign]::MutedColor
 $tp=$pages.templates
 $templates=List $tp 16 18 240 418 @('模板名称','常用')
 $pin=Button $tp '固定到运行中心' 16 452 240

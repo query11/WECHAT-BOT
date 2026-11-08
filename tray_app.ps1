@@ -108,11 +108,11 @@ $form.AutoScaleMode = 'Dpi'
 $form.ClientSize = New-Object Drawing.Size(960,720)
 $form.MinimumSize = New-Object Drawing.Size(896,679)
 $form.StartPosition = 'CenterScreen'
-$form.BackColor = [Drawing.Color]::White
-$form.ForeColor = [Drawing.ColorTranslator]::FromHtml('#2C3E50')
+$form.BackColor = [TrayDesign]::PageColor
+$form.ForeColor = [TrayDesign]::TextColor
 $form.Font = New-Object Drawing.Font('Microsoft YaHei UI',10.5)
-$muted = [Drawing.ColorTranslator]::FromHtml('#64748B')
-$accent = [Drawing.ColorTranslator]::FromHtml('#4A90E2')
+$muted = [TrayDesign]::MutedColor
+$accent = [TrayDesign]::Blue
 function Label($text,$x,$y,$width,$height,$size=10.5,$parent=$form) {
     $l = New-Object Windows.Forms.Label
     $l.AutoEllipsis=$true; $l.Text=$text; $l.Location=New-Object Drawing.Point($x,$y); $l.Size=New-Object Drawing.Size($width,$height)
@@ -127,7 +127,7 @@ function Card($x,$y,$w,$h) {
 function Divider($parent,$x,$y,$width) {
     $line=New-Object Windows.Forms.Panel
     $line.SetBounds($x,$y,$width,1)
-    $line.BackColor=[Drawing.ColorTranslator]::FromHtml('#E8ECEF')
+    $line.BackColor=[TrayDesign]::DividerColor
     $parent.Controls.Add($line);return $line
 }
 function Glyph($parent,$kind,$x,$y,$size,$color=$accent) {
@@ -145,8 +145,9 @@ function Card-Heading($parent,$text,$kind) {
 $brand=New-Object Windows.Forms.PictureBox
 $brand.Location=New-Object Drawing.Point(24,24);$brand.Size=New-Object Drawing.Size(40,40)
 $brand.SizeMode='Zoom';$brand.Image=[TrayDesign]::Symbol($accent,96,'standby');$form.Controls.Add($brand)
-$title=Label '微信助手' 80 16 350 32 18
-$title.Font=New-Object Drawing.Font('Microsoft YaHei UI',18,[Drawing.FontStyle]::Bold)
+$title=Label '微信助手' 80 16 350 32 16
+# 16pt keeps the brand below the 18pt assistant state, which is the main reading point.
+$title.Font=New-Object Drawing.Font('Microsoft YaHei UI',16,[Drawing.FontStyle]::Bold);$title.ForeColor=[TrayDesign]::Heading
 $subtitle=Label '运行中心 · 让微信连接你的电脑' 80 48 430 24 10.5
 $subtitle.ForeColor=$muted
 $connectionBadge=New-Object TrayBadge;$connectionBadge.Text='正在连接微信'
@@ -156,7 +157,7 @@ $eyebrow=Label '助手状态' 24 24 210 24 10.5 $statusCard;$eyebrow.ForeColor=$
 $backendTip=New-Object Windows.Forms.ToolTip
 $backendTip.ShowAlways=$true;$backendTip.AutoPopDelay=12000
 $stateDot=New-Object Windows.Forms.Panel;$stateDot.SetBounds(24,72,12,12);$stateDot.BackColor=[Drawing.Color]::Transparent
-$script:statusColor=[Drawing.ColorTranslator]::FromHtml('#71869B')
+$script:statusColor=[TrayDesign]::Standby
 $stateDot.Add_Paint({param($sender,$e)
     $e.Graphics.SmoothingMode='AntiAlias';$brush=New-Object Drawing.SolidBrush($script:statusColor)
     try{$e.Graphics.FillEllipse($brush,0,0,$sender.Width-1,$sender.Height-1)}finally{$brush.Dispose()}
@@ -195,8 +196,8 @@ $modelCaption=Label '当前模型' 24 128 312 24 9.75 $modelCard;$modelCaption.F
 $modelName=Label '正在读取…' 24 152 312 32 13.5 $modelCard;$modelName.Font=New-Object Drawing.Font('Microsoft YaHei UI',13.5,[Drawing.FontStyle]::Bold)
 $modelStatus=Label '尚无模型调用记录' 24 184 312 40 9.75 $modelCard;$modelStatus.ForeColor=$muted
 $backendTip.SetToolTip($modelStatus,'根据实际模型任务更新，不会自动发送收费请求。显示上次调用结果，不代表持续探测在线。')
-$settingsButton=New-Object TrayButton;$settingsButton.Text='配置';$settingsButton.IconKind='';$settingsButton.Navigate=$false
-$settingsButton.SetBounds(24,232,312,48);$settingsButton.Font=New-Object Drawing.Font('Microsoft YaHei UI',10.5);$modelCard.Controls.Add($settingsButton)
+$settingsButton=New-Object TrayButton;$settingsButton.Text='后端配置';$settingsButton.IconKind='';$settingsButton.Navigate=$false;$settingsButton.Link=$true
+$settingsButton.SetBounds(24,232,312,48);$settingsButton.Font=New-Object Drawing.Font('Microsoft YaHei UI',9.75);$modelCard.Controls.Add($settingsButton)
 $settingsButton.Add_Click({Open-UtilityWindow 'backend_editor.ps1' '后端配置'})
 $taskCard=Card 24 352 536 216
 $taskHead=Card-Heading $taskCard '当前任务' 'task'
@@ -205,7 +206,7 @@ $task=Label '暂无执行中的任务' 24 96 488 24 10.5 $taskCard;$task.Font=Ne
 $taskGuide=Label '任务执行时可在这里查看进度。' 24 128 488 24 9.75 $taskCard;$taskGuide.ForeColor=$muted;$taskGuide.TextAlign='MiddleCenter'
 $progressText=Label '' 24 52 488 32 9.75 $taskCard;$progressText.ForeColor=$accent;$progressText.TextAlign='MiddleCenter';$progressText.Visible=$false
 $elapsedText=Label '' 24 136 488 24 9.75 $taskCard;$elapsedText.ForeColor=$muted;$elapsedText.TextAlign='MiddleCenter';$elapsedText.Visible=$false
-$stats=Label '等待任务 0       附件处理 0' 24 176 300 32 9.75 $taskCard;$stats.ForeColor=$muted
+$stats=Label '等待任务 0  ·  附件处理 0' 24 176 300 32 9.75 $taskCard;$stats.ForeColor=$muted
 $taskRule=Divider $taskCard 24 160 488
 $cancelButton=New-Object TrayButton;$cancelButton.Text='停止当前任务';$cancelButton.IconKind='stop';$cancelButton.Danger=$true
 $cancelButton.SetBounds(360,176,152,32);$cancelButton.Font=New-Object Drawing.Font('Microsoft YaHei UI',9.75);$cancelButton.Enabled=$false
@@ -218,8 +219,8 @@ $appsButton.Add_Click({Open-UtilityWindow 'app_settings.ps1' '常用应用'})
 $memoryButton=New-Object TrayButton;$memoryButton.Text='固定记忆';$memoryButton.IconKind='memory';$memoryButton.Navigate=$true;$memoryButton.Description='工作目录与回复偏好'
 $memoryButton.SetBounds(24,120,312,48);$memoryButton.Font=New-Object Drawing.Font('Microsoft YaHei UI',10.5);$entryCard.Controls.Add($memoryButton)
 $memoryButton.Add_Click({Open-UtilityWindow 'memory_editor.ps1' '固定记忆'})
-$templatesButton=New-Object TrayButton;$templatesButton.Text='任务模板';$templatesButton.Quiet=$true;$templatesButton.Font=New-Object Drawing.Font('Microsoft YaHei UI',9.75);$entryCard.Controls.Add($templatesButton)
-$scheduleButton=New-Object TrayButton;$scheduleButton.Text='定时任务';$scheduleButton.Quiet=$true;$scheduleButton.Font=New-Object Drawing.Font('Microsoft YaHei UI',9.75);$entryCard.Controls.Add($scheduleButton);$scheduleButton.Add_Click({Open-Workflow 'schedules'})
+$templatesButton=New-Object TrayButton;$templatesButton.Text='任务模板';$templatesButton.Quiet=$true;$templatesButton.Link=$true;$templatesButton.Font=New-Object Drawing.Font('Microsoft YaHei UI',9.75);$entryCard.Controls.Add($templatesButton)
+$scheduleButton=New-Object TrayButton;$scheduleButton.Text='定时任务';$scheduleButton.Quiet=$true;$scheduleButton.Link=$true;$scheduleButton.Font=New-Object Drawing.Font('Microsoft YaHei UI',9.75);$entryCard.Controls.Add($scheduleButton);$scheduleButton.Add_Click({Open-Workflow 'schedules'})
 $templatesButton.Add_Click({Open-UtilityWindow 'template_editor.ps1' '任务模板'})
 $favoriteChoice=New-Object Windows.Forms.ComboBox;$favoriteChoice.DropDownStyle='DropDownList';$favoriteChoice.Font=New-Object Drawing.Font('Microsoft YaHei UI',9.75);$entryCard.Controls.Add($favoriteChoice)
 $quickRun=New-Object TrayButton;$quickRun.Text='运行模板';$quickRun.Font=New-Object Drawing.Font('Microsoft YaHei UI',9.75);$entryCard.Controls.Add($quickRun)
@@ -227,8 +228,8 @@ $quickRun.Add_Click({$id='';if($favoriteChoice.SelectedIndex -ge 0 -and $favorit
 $fileTaskButton=New-Object TrayButton;$fileTaskButton.Text='文件任务';$fileTaskButton.Font=New-Object Drawing.Font('Microsoft YaHei UI',9.75);$entryCard.Controls.Add($fileTaskButton);$fileTaskButton.Add_Click({Open-Workflow 'localfiles'})
 $batchButton=New-Object TrayButton;$batchButton.Text='附件核对';$batchButton.Font=New-Object Drawing.Font('Microsoft YaHei UI',9.75);$entryCard.Controls.Add($batchButton);$batchButton.Add_Click({Open-Workflow 'batches'})
 $appsButton.Description='';$memoryButton.Description='';$appsButton.Navigate=$false;$memoryButton.Navigate=$false;$appsButton.IconKind='';$memoryButton.IconKind=''
-$resultRevise=New-Object TrayButton;$resultRevise.Text='继续修改';$resultRevise.Quiet=$true;$resultRevise.Font=New-Object Drawing.Font('Microsoft YaHei UI',9.75);$taskCard.Controls.Add($resultRevise);$resultRevise.Add_Click({if($script:resultCard){Open-Workflow 'revise' '' ([string]$script:resultCard.id)}})
-$resultButton=New-Object TrayButton;$resultButton.Text='全部结果';$resultButton.Quiet=$true;$resultButton.Font=New-Object Drawing.Font('Microsoft YaHei UI',9.75);$taskCard.Controls.Add($resultButton);$resultButton.Add_Click({Open-Workflow 'results'})
+$resultRevise=New-Object TrayButton;$resultRevise.Text='继续修改';$resultRevise.Quiet=$true;$resultRevise.Link=$true;$resultRevise.Font=New-Object Drawing.Font('Microsoft YaHei UI',9.75);$taskCard.Controls.Add($resultRevise);$resultRevise.Add_Click({if($script:resultCard){Open-Workflow 'revise' '' ([string]$script:resultCard.id)}})
+$resultButton=New-Object TrayButton;$resultButton.Text='全部结果';$resultButton.Quiet=$true;$resultButton.Link=$true;$resultButton.Font=New-Object Drawing.Font('Microsoft YaHei UI',9.75);$taskCard.Controls.Add($resultButton);$resultButton.Add_Click({Open-Workflow 'results'})
 $resultPanel=New-Object Windows.Forms.Panel;$resultPanel.BackColor=[Drawing.Color]::Transparent;$taskCard.Controls.Add($resultPanel);$resultPanel.Visible=$false
 $resultSummary=Label '' 0 0 400 32 10.5 $resultPanel;$resultSummary.Font=New-Object Drawing.Font('Microsoft YaHei UI',10.5,[Drawing.FontStyle]::Bold)
 $resultConclusion=Label '' 0 36 400 24 9.75 $resultPanel;$resultConclusion.ForeColor=$muted
@@ -250,16 +251,16 @@ $historyButton.Add_Click({Open-UtilityWindow 'task_history.ps1' '任务记录'})
 $records=New-Object Windows.Forms.TextBox
 $records.Location=New-Object Drawing.Point(48,56);$records.Size=New-Object Drawing.Size(464,104)
 $records.Multiline=$true;$records.ReadOnly=$true;$records.ScrollBars='Vertical';$records.BorderStyle='None'
-$records.BackColor=$logCard.Surface;$records.ForeColor=[Drawing.ColorTranslator]::FromHtml('#2C3E50')
+$records.BackColor=$logCard.Surface;$records.ForeColor=[TrayDesign]::TextColor
 $records.Font=New-Object Drawing.Font('Microsoft YaHei UI',9.75)
 $records.TabStop=$true;$records.AccessibleName='最近运行动态';$records.HideSelection=$true;$logCard.Controls.Add($records)
 $timeline=New-Object TrayTimelineMarks;$timeline.Source=$records;$timeline.SetBounds(24,56,16,104);$logCard.Controls.Add($timeline)
 $attentionList=New-Object Windows.Forms.ListView;$attentionList.View='Details';$attentionList.FullRowSelect=$true;$attentionList.MultiSelect=$false;$attentionList.HideSelection=$false;$attentionList.BorderStyle='None'
-$attentionList.BackColor=$logCard.Surface;$attentionList.ForeColor=[Drawing.ColorTranslator]::FromHtml('#2C3E50');$attentionList.Font=New-Object Drawing.Font('Microsoft YaHei UI',9.75)
+$attentionList.BackColor=$logCard.Surface;$attentionList.ForeColor=[TrayDesign]::TextColor;$attentionList.Font=New-Object Drawing.Font('Microsoft YaHei UI',9.75)
 $attentionList.ShowItemToolTips=$true;$attentionList.AccessibleName='待处理事项';$null=$attentionList.Columns.Add('待处理原因',160);$null=$attentionList.Columns.Add('任务 / 附件',300);$logCard.Controls.Add($attentionList)
 $attentionEmpty=Label '正在读取待处理事项…' 16 56 400 48 10 $logCard;$attentionEmpty.ForeColor=$muted
 $attentionOpen=New-Object TrayButton;$attentionOpen.Text='查看所选事项';$attentionOpen.Font=New-Object Drawing.Font('Microsoft YaHei UI',9.75);$attentionOpen.Enabled=$false;$logCard.Controls.Add($attentionOpen)
-$activityToggle=New-Object TrayButton;$activityToggle.Text='最近动态';$activityToggle.Quiet=$true;$activityToggle.Font=New-Object Drawing.Font('Microsoft YaHei UI',9.75);$logCard.Controls.Add($activityToggle)
+$activityToggle=New-Object TrayButton;$activityToggle.Text='最近动态';$activityToggle.Quiet=$true;$activityToggle.Link=$true;$activityToggle.Font=New-Object Drawing.Font('Microsoft YaHei UI',9.75);$logCard.Controls.Add($activityToggle)
 $script:showActivity=$false;$script:attentionSignature='';$script:attentionData=$null;$script:resultCard=$null
 $activityToggle.Add_Click({$script:showActivity=-not $script:showActivity;Update-AttentionDisplay})
 $attentionList.Add_SelectedIndexChanged({Update-AttentionAction})
@@ -308,7 +309,7 @@ $deepseekButton.TabIndex=0;$claudeButton.TabIndex=1;$settingsButton.TabIndex=2;$
 function Set-Feedback($text,$tone='info') {
     $script:connectionFeedback=$false
     $hint.Text=$text
-    $hint.ForeColor=switch($tone){'error'{[Drawing.ColorTranslator]::FromHtml('#B24A59')};'success'{[Drawing.ColorTranslator]::FromHtml('#52C41A')};default{$accent}}
+    $hint.ForeColor=switch($tone){'error'{[TrayDesign]::DangerText};'success'{[TrayDesign]::SuccessText};default{$accent}}
     $backendTip.SetToolTip($hint,$text)
 }
 function Has-ActiveTask($s) {
@@ -416,8 +417,8 @@ $menu=New-Object Windows.Forms.ContextMenuStrip
 $menu.Font=New-Object Drawing.Font('Microsoft YaHei UI',10)
 $menu.ShowImageMargin=$false
 $menu.ShowItemToolTips=$true
-$menu.BackColor=[Drawing.Color]::White
-$menu.ForeColor=[Drawing.ColorTranslator]::FromHtml('#192B45')
+$menu.BackColor=[TrayDesign]::CardColor
+$menu.ForeColor=[TrayDesign]::Heading
 $null=$menu.Items.Add('打开运行中心',$null,{ $form.Show(); $form.WindowState='Normal'; $form.Activate() })
 $wakeMenu=$menu.Items.Add('唤醒助手',$null,{ Send-Control 'wake' })
 $standbyMenu=$menu.Items.Add('进入待机',$null,{ Send-Control 'standby' })
@@ -443,27 +444,25 @@ $tray.Add_DoubleClick({$form.Show();$form.WindowState='Normal';$form.Activate()}
 function Set-Indicator($key,$caption) {
     if ($script:lastState -eq $key) {return}
     $script:lastState=$key
-    $color='#95A5A6'; $textColor='#2C3E50'; $borderColor='#E8ECEF'; $mark='-'
+    $c=[TrayDesign]::MutedColor; $textColor=[TrayDesign]::TextColor
     switch ($key) {
-      'standby' {$color='#71869B';$textColor='#526A80';$borderColor='#DCE4EC';$mark='B'}
-      'working' {$color='#52C41A';$textColor='#2F7D46';$borderColor='#D5E6D9';$mark='W'}
-      'reconnecting' {$color='#C98608';$mark='!'}
-      'stopping' {$color='#C98608';$mark='…'}
-      'draining' {$color='#C98608';$mark='…'}
-      'error' {$color='#D63649';$mark='X'}
-      'error-stale' {$color='#D63649';$mark='X'}
+      'standby' {$c=[TrayDesign]::Standby;$textColor=[TrayDesign]::StandbyText}
+      'working' {$c=[TrayDesign]::Success;$textColor=[TrayDesign]::SuccessText}
+      {$_ -in @('reconnecting','stopping','draining')} {$c=[TrayDesign]::Warning}
+      {$_ -in @('error','error-stale')} {$c=[TrayDesign]::Danger;$textColor=[TrayDesign]::DangerText}
     }
-    $c=[Drawing.ColorTranslator]::FromHtml($color)
+    # The status card border carries a faint tint of the indicator color.
+    $border=[TrayDesign]::Mix([TrayDesign]::CardColor,$c,0.25)
     $script:statusColor=$c;$stateDot.Invalidate()
-    $statusCard.Surface=[Drawing.ColorTranslator]::FromHtml('#F8F9FA')
-    $statusCard.Border=[Drawing.ColorTranslator]::FromHtml($borderColor)
+    $statusCard.Surface=[TrayDesign]::CardColor
+    $statusCard.Border=$border
     $statusRule.BackColor=$statusCard.Border;$statusCard.Invalidate($true)
     $bitmap=[TrayDesign]::Symbol($c,64,$key)
     $handle=$bitmap.GetHicon();$borrowed=[Drawing.Icon]::FromHandle($handle);$icon=$borrowed.Clone()
     $old=$tray.Icon;$tray.Icon=$icon;$form.Icon=$icon
     if($old){$old.Dispose()};$borrowed.Dispose();[TrayNative]::DestroyIcon($handle)|Out-Null
     $bitmap.Dispose()
-    $tray.Text=('微信助手 · '+$caption);$state.ForeColor=[Drawing.ColorTranslator]::FromHtml($textColor)
+    $tray.Text=('微信助手 · '+$caption);$state.ForeColor=$textColor
 }
 function Show-Snapshot($s,$alive,$now) {
     $key='stopped';$caption='后台未启动'
@@ -484,7 +483,8 @@ function Show-Snapshot($s,$alive,$now) {
     }
     $backendTip.SetToolTip($serviceGuide,$serviceGuide.Text)
     $connectionBadge.Text=switch($key){'standby'{'微信已连接'};'working'{'微信已连接'};'draining'{'微信已连接'};'stopped'{'服务未启动'};'stopping'{'正在停止服务'};'error-stale'{'后台未响应'};'error'{'连接需要检查'};default{'正在连接微信'}}
-    $connectionBadge.StatusColor=switch($key){'standby'{[Drawing.ColorTranslator]::FromHtml('#52C41A')};'working'{[Drawing.ColorTranslator]::FromHtml('#52C41A')};'draining'{[Drawing.ColorTranslator]::FromHtml('#A77312')};'reconnecting'{[Drawing.ColorTranslator]::FromHtml('#A77312')};'error'{[Drawing.ColorTranslator]::FromHtml('#B24A59')};'error-stale'{[Drawing.ColorTranslator]::FromHtml('#B24A59')};default{[Drawing.Color]::SlateGray}}
+    # The badge draws its dot in this color and darkens the text to a readable shade.
+    $connectionBadge.StatusColor=switch($key){'standby'{[TrayDesign]::Success};'working'{[TrayDesign]::Success};'draining'{[TrayDesign]::Warning};'reconnecting'{[TrayDesign]::Warning};'error'{[TrayDesign]::Danger};'error-stale'{[TrayDesign]::Danger};default{[TrayDesign]::MutedColor}}
     $connectionBadge.Invalidate()
     if($s){
       $last='尚未成功通信';if($s.last_success -gt 0){$last=[DateTimeOffset]::FromUnixTimeSeconds([long]$s.last_success).LocalDateTime.ToString('HH:mm:ss')}
@@ -503,15 +503,15 @@ function Show-Snapshot($s,$alive,$now) {
         $modelStatus.Text=[string]$mh.label
         if($mh.last_checked -gt 0 -and $mh.state -ne 'running'){$modelStatus.Text+="`r`n"+[DateTimeOffset]::FromUnixTimeSeconds([long]$mh.last_checked).LocalDateTime.ToString('MM-dd HH:mm')}
         $backendTip.SetToolTip($modelStatus,$modelStatus.Text+"`r`n"+[string]$mh.detail+"`r`n根据实际模型任务更新，不自动发送收费请求。")
-        $modelStatus.ForeColor=switch($mh.state){'available'{[Drawing.ColorTranslator]::FromHtml('#52C41A')};'error'{[Drawing.ColorTranslator]::FromHtml('#BE3846')};'running'{[Drawing.ColorTranslator]::FromHtml('#A77312')};default{$muted}}
+        $modelStatus.ForeColor=switch($mh.state){'available'{[TrayDesign]::SuccessText};'error'{[TrayDesign]::DangerText};'running'{[TrayDesign]::WarningText};default{$muted}}
       }else{$modelStatus.Text='尚无模型调用记录';$modelStatus.ForeColor=$muted}
       $task.Text=if($alive){[string]$s.task}else{'后台未运行'}
       $taskGuide.Text=if(-not $alive){'启动服务后，任务状态会显示在这里。'}elseif($s.stage){[string]$s.stage}elseif(Has-ActiveTask $s){'任务执行中，状态由后台报告。'}else{'任务执行时可在这里查看进度。'}
       $backendTip.SetToolTip($task,$task.Text);$backendTip.SetToolTip($taskGuide,$taskGuide.Text)
-      $stats.Text=if($alive){"等待任务 $($s.queued)       附件处理 $($s.downloads)"}else{'等待任务 —       附件处理 —'}
+      $stats.Text=if($alive){"等待任务 $($s.queued)  ·  附件处理 $($s.downloads)"}else{'等待任务 —  ·  附件处理 —'}
       $eventText=($s.events -join "`r`n`r`n")
       if($records.Text -ne $eventText -and -not $records.Focused){$records.Text=$eventText;$records.SelectionStart=$records.Text.Length;$records.SelectionLength=0;$records.ScrollToCaret()}
-    }else{$detail.Text='—';$lastTime.Text='尚未成功通信';$modelName.Text='尚未读取';$task.Text='后台未运行';$taskGuide.Text='启动服务后，任务状态会显示在这里。';$stats.Text='等待任务 —       附件处理 —'}
+    }else{$detail.Text='—';$lastTime.Text='尚未成功通信';$modelName.Text='尚未读取';$task.Text='后台未运行';$taskGuide.Text='启动服务后，任务状态会显示在这里。';$stats.Text='等待任务 —  ·  附件处理 —'}
     Refresh-Backend $s $alive;Refresh-Actions $s $alive
     Update-WorkflowPanels $s ($alive -and $now-$s.heartbeat -le 8)
     Show-TaskProgress $s ($alive -and $now-$s.heartbeat -le 8)
@@ -542,7 +542,7 @@ function Update-WorkflowPanels($s,$alive) {
     $taskHead.Text=if($visible){'最近结果'}else{'当前任务'}
     if($visible){
         $resultSummary.Text=[string]$card.summary;$resultConclusion.Text=[string]$card.conclusion
-        $resultConclusion.ForeColor=switch([string]$card.tone){'error'{[Drawing.ColorTranslator]::FromHtml('#B42318')};'warning'{[Drawing.ColorTranslator]::FromHtml('#996000')};default{$muted}}
+        $resultConclusion.ForeColor=switch([string]$card.tone){'error'{[TrayDesign]::DangerText};'warning'{[TrayDesign]::WarningText};default{$muted}}
         $resultDetail.Text=if($card.action_label){[string]$card.action_label}else{'查看完整回复'}
         $resultDetail.Enabled=([string]$card.id -match '^[a-f0-9]{32}$')
         $backendTip.SetToolTip($resultSummary,$resultSummary.Text);$backendTip.SetToolTip($resultConclusion,$resultConclusion.Text)
@@ -867,7 +867,7 @@ if($VerifyWindows){
    $script:snapshot.desktop_overview | Add-Member -NotePropertyName attention -NotePropertyValue $attention
    Show-Snapshot $script:snapshot $true $now;[Windows.Forms.Application]::DoEvents()
    if($resultFiles.Visible -or $resultOpen.Visible -or $resultFolder.Visible -or -not $resultDetail.Enabled -or $resultDetail.Text -ne '查看失败原因'){throw 'Text-only failure shows file controls or loses detail action'}
-   if($resultConclusion.ForeColor -ne [Drawing.ColorTranslator]::FromHtml('#B42318')){throw 'Failure is not visually distinguished'}
+   if($resultConclusion.ForeColor -ne [TrayDesign]::DangerText){throw 'Failure is not visually distinguished'}
    if($attentionList.Items.Count -ne 2 -or -not $attentionList.Visible){throw 'Pending work is missing from the workbench'}
    $attentionList.Items[1].Selected=$true;Show-Snapshot $script:snapshot $true $now
    if($attentionOpen.Text -ne '核对附件' -or $attentionList.SelectedItems[0].Tag.id -ne ('d'*32)){throw 'Attention selection or target was lost on refresh'}

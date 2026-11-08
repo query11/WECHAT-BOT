@@ -14,8 +14,8 @@ $window.AutoScaleDimensions=New-Object Drawing.SizeF(96,96);$window.AutoScaleMod
 $window.Text='微信助手 · 任务记录';$window.ClientSize=New-Object Drawing.Size(900,760)
 $window.MinimumSize=New-Object Drawing.Size(916,799);$window.StartPosition='CenterScreen'
 $window.Font=New-Object Drawing.Font('Microsoft YaHei UI',10)
-$window.BackColor=[Drawing.ColorTranslator]::FromHtml('#F3F5F9')
-$window.ForeColor=[Drawing.ColorTranslator]::FromHtml('#192B45')
+$window.BackColor=[TrayDesign]::PageColor
+$window.ForeColor=[TrayDesign]::Heading
 $iconPath=Join-Path $PSScriptRoot 'wechat-assistant-v2.ico'
 if(Test-Path -LiteralPath $iconPath){$window.Icon=New-Object Drawing.Icon($iconPath)}
 function Add-Label($text,$x,$y,$w,$h,$size=10){
@@ -24,7 +24,7 @@ function Add-Label($text,$x,$y,$w,$h,$size=10){
 }
 $title=Add-Label '任务记录' 26 20 400 42 16;$title.Font=New-Object Drawing.Font('Microsoft YaHei UI',16,[Drawing.FontStyle]::Bold)
 $intro=Add-Label '最近 200 条任务 · 选择记录查看结果与关联文件' 28 70 640 28 10
-$intro.ForeColor=[Drawing.Color]::SlateGray
+$intro.ForeColor=[TrayDesign]::MutedColor
 $sourceTip=New-Object Windows.Forms.ToolTip
 $script:historyEmpty='暂无任务记录。'
 $script:focusPending=[bool]$FocusId
@@ -41,22 +41,22 @@ $filter.Items.AddRange(@('全部任务','需要处理','等待执行','正在处
 function Size-HistoryColumns { if(Set-RememberedColumns $list){return}; $width=$list.ClientSize.Width-24;$list.Columns[0].Width=[int]($width*.25);$list.Columns[1].Width=[int]($width*.25);$list.Columns[2].Width=[Math]::Max(100,$width-$list.Columns[0].Width-$list.Columns[1].Width) }
 $list.Add_SizeChanged({Size-HistoryColumns});$window.Add_Shown({Size-HistoryColumns})
 $heading=Add-Label '结果摘要' 28 320 640 26 11;$heading.Font=New-Object Drawing.Font('Microsoft YaHei UI',11,[Drawing.FontStyle]::Bold)
-$summaryState=Add-Label '' 28 350 846 24 9;$summaryState.Anchor='Top,Left,Right';$summaryState.ForeColor=[Drawing.Color]::SlateGray
+$summaryState=Add-Label '' 28 350 846 24 9;$summaryState.Anchor='Top,Left,Right';$summaryState.ForeColor=[TrayDesign]::MutedColor
 $details=New-Object Windows.Forms.TextBox;$details.Multiline=$true;$details.ReadOnly=$true;$details.ScrollBars='Vertical'
 $details.SetBounds(28,378,846,48);$details.Anchor='Top,Left,Right';$window.Controls.Add($details)
 $outputList=New-Object Windows.Forms.ListView;$outputList.View='Details';$outputList.FullRowSelect=$true;$outputList.MultiSelect=$false;$outputList.HideSelection=$false
 $outputList.SetBounds(28,438,650,74);$outputList.Anchor='Top,Left,Right';$null=$outputList.Columns.Add('产物文件',300);$null=$outputList.Columns.Add('检查 / 记录',310);$window.Controls.Add($outputList)
 $outputList.Add_SizeChanged({if(Set-RememberedColumns $outputList){return};$width=$outputList.ClientSize.Width-24;$outputList.Columns[0].Width=[int]($width*.48);$outputList.Columns[1].Width=[Math]::Max(80,$width-$outputList.Columns[0].Width)})
 $locate=New-Object TrayButton;$locate.Text='打开文件位置';$locate.SetBounds(694,438,180,36);$locate.Anchor='Top,Right';$locate.Enabled=$false;$window.Controls.Add($locate)
-$outputHint=Add-Label '选择文件可定位' 694 478 180 30 9;$outputHint.Anchor='Top,Right';$outputHint.ForeColor=[Drawing.Color]::SlateGray
+$outputHint=Add-Label '选择文件可定位' 694 478 180 30 9;$outputHint.Anchor='Top,Right';$outputHint.ForeColor=[TrayDesign]::MutedColor
 $tabs=New-Object Windows.Forms.TabControl;$tabs.SetBounds(28,526,846,126);$tabs.Anchor='Top,Bottom,Left,Right';$window.Controls.Add($tabs)
-$actionHint=Add-Label '选择任务和操作后可查看下一步。' 28 658 846 26 9;$actionHint.Anchor='Bottom,Left,Right';$actionHint.ForeColor=[Drawing.Color]::SlateGray
+$actionHint=Add-Label '选择任务和操作后可查看下一步。' 28 658 846 26 9;$actionHint.Anchor='Bottom,Left,Right';$actionHint.ForeColor=[TrayDesign]::MutedColor
 function Detail-Tab($name){
  $page=New-Object Windows.Forms.TabPage;$page.Text=$name;$page.Padding=New-Object Windows.Forms.Padding(8);$null=$tabs.TabPages.Add($page)
  $box=New-Object Windows.Forms.TextBox;$box.Multiline=$true;$box.ReadOnly=$true;$box.ScrollBars='Vertical';$box.Dock='Fill';$page.Controls.Add($box);return $box
 }
 $replyDetails=Detail-Tab '完整回复';$inputDetails=Detail-Tab '输入与模板';$checkDetails=Detail-Tab '检查结果'
-$status=Add-Label '' 28 736 846 22 9;$status.Anchor='Bottom,Left,Right';$status.ForeColor=[Drawing.Color]::SlateGray
+$status=Add-Label '' 28 736 846 22 9;$status.Anchor='Bottom,Left,Right';$status.ForeColor=[TrayDesign]::MutedColor
 $operationChoice=New-Object Windows.Forms.ComboBox;$operationChoice.DropDownStyle='DropDownList';$operationChoice.SetBounds(28,692,470,32);$operationChoice.Anchor='Bottom,Left,Right';$operationChoice.Enabled=$false;$window.Controls.Add($operationChoice)
 $copy=New-Object TrayButton;$copy.Text='复制微信指令';$copy.SetBounds(514,692,164,36);$copy.Anchor='Bottom,Right';$copy.Enabled=$false;$window.Controls.Add($copy)
 $execute=New-Object TrayButton;$execute.Text='选择操作';$execute.Primary=$true;$execute.SetBounds(694,692,180,36);$execute.Anchor='Bottom,Right';$execute.Enabled=$false;$window.Controls.Add($execute)

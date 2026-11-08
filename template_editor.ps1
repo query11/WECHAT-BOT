@@ -11,7 +11,7 @@ $window=New-Object Windows.Forms.Form
 $window.Text='微信助手 · 任务模板';$window.ClientSize=New-Object Drawing.Size(900,720)
 $window.MinimumSize=New-Object Drawing.Size(916,759);$window.StartPosition='CenterScreen'
 $window.AutoScaleDimensions=New-Object Drawing.SizeF(96,96);$window.AutoScaleMode='Dpi'
-$window.BackColor=[Drawing.ColorTranslator]::FromHtml('#F3F5F9');$window.ForeColor=[Drawing.ColorTranslator]::FromHtml('#192B45')
+$window.BackColor=[TrayDesign]::PageColor;$window.ForeColor=[TrayDesign]::Heading
 $window.Font=New-Object Drawing.Font('Microsoft YaHei UI',10)
 $icon=Join-Path $PSScriptRoot 'wechat-assistant-v2.ico';if(Test-Path -LiteralPath $icon){$window.Icon=New-Object Drawing.Icon($icon)}
 function Label($text,$x,$y,$w,$h,$size=10){
@@ -19,8 +19,8 @@ function Label($text,$x,$y,$w,$h,$size=10){
  $c.Font=New-Object Drawing.Font('Microsoft YaHei UI',$size);$window.Controls.Add($c);return $c
 }
 function Button($text,$x,$y,$w){$c=New-Object TrayButton;$c.Text=$text;$c.SetBounds($x,$y,$w,36);$window.Controls.Add($c);return $c}
-$title=Label '任务模板' 24 18 600 38 17;$title.Font=New-Object Drawing.Font('Microsoft YaHei UI',17,[Drawing.FontStyle]::Bold)
-$intro=Label '把常用要求保存下来，下次在微信直接按模板处理。' 26 62 840 26 10;$intro.ForeColor=[Drawing.Color]::SlateGray
+$title=Label '任务模板' 24 18 600 38 16;$title.Font=New-Object Drawing.Font('Microsoft YaHei UI',16,[Drawing.FontStyle]::Bold)
+$intro=Label '把常用要求保存下来，下次在微信直接按模板处理。' 26 62 840 26 10;$intro.ForeColor=[TrayDesign]::MutedColor
 $ownerLabel=Label '微信用户' 26 103 90 28
 $owner=New-Object Windows.Forms.ComboBox;$owner.DropDownStyle='DropDownList';$owner.SetBounds(122,99,516,30);$owner.Anchor='Top,Left,Right';$window.Controls.Add($owner)
 $reload=Button '重新读取' 720 97 154;$reload.Anchor='Top,Right'
@@ -45,7 +45,7 @@ $checksHelp=New-Object Windows.Forms.LinkLabel;$checksHelp.Text='规则示例';$
 $checksHelp.Add_LinkClicked({[void][Windows.Forms.MessageBox]::Show($window,"每行一条，字段之间用 | 分隔：`r`n`r`n必需列 | 汇总.csv | - | 项目,金额`r`n列合计 | 汇总.csv | - | 金额 | 40`r`n必需章节 | 报告.md | 结论,建议`r`n`r`nXLSX 的第三项填写工作表名称，CSV 填 -。",'检查条件示例','OK','Information')})
 $delete=Button '删除模板' 290 636 128;$delete.Anchor='Bottom,Left';$delete.Danger=$true
 $save=Button '保存新模板' 704 636 170;$save.Anchor='Bottom,Right';$save.Primary=$true
-$feedback=Label '正在读取模板…' 26 680 848 30 9;$feedback.Anchor='Bottom,Left,Right';$feedback.ForeColor=[Drawing.Color]::SlateGray
+$feedback=Label '正在读取模板…' 26 680 848 30 9;$feedback.Anchor='Bottom,Left,Right';$feedback.ForeColor=[TrayDesign]::MutedColor
 $script:data=$null;$script:job=$null;$script:loading=$false;$script:dirty=$false;$script:current=$null;$script:users=@();$script:feedbackError=$false
 function Update-Actions {
  $ready=($script:data -and $script:data.ok -and -not $script:job)

@@ -29,7 +29,7 @@ $appIcon=Join-Path $projectDir 'wechat-assistant-v2.ico'
 if(Test-Path -LiteralPath $appIcon){$window.Icon=New-Object Drawing.Icon($appIcon)}
 $window.MinimumSize=New-Object Drawing.Size(650,540);$window.StartPosition='CenterScreen'
 $window.Font=New-Object Drawing.Font('Microsoft YaHei UI',10)
-$window.BackColor=[Drawing.ColorTranslator]::FromHtml('#F3F5F9');$window.ForeColor=[Drawing.ColorTranslator]::FromHtml('#202D40')
+$window.BackColor=[TrayDesign]::PageColor;$window.ForeColor=[TrayDesign]::Heading
 $title=New-Object Windows.Forms.Label
 $title.Text='固定记忆';$title.Font=New-Object Drawing.Font('Microsoft YaHei UI',16,[Drawing.FontStyle]::Bold)
 $title.SetBounds(24,20,650,40);$window.Controls.Add($title)
@@ -48,7 +48,7 @@ $script:initialEditor=$editor.Text
 $window.Controls.Add($editor)
 $status=New-Object Windows.Forms.Label;$status.SetBounds(26,486,666,30);$status.Anchor='Bottom,Left,Right';$window.Controls.Add($status)
 $save=New-Object TrayButton;$save.Text='保存记忆';$save.Primary=$true;$save.SetBounds(554,524,138,34);$save.Anchor='Bottom,Right';$save.Enabled=$false;$window.Controls.Add($save)
-$editor.Add_TextChanged({$save.Enabled=($editor.Text -cne $script:initialEditor);if($save.Enabled){$status.Text='有未保存的修改 · Ctrl+S 保存';$status.ForeColor=[Drawing.ColorTranslator]::FromHtml('#2563EB')}else{$status.Text='暂无未保存的修改';$status.ForeColor=[Drawing.Color]::SlateGray}})
+$editor.Add_TextChanged({$save.Enabled=($editor.Text -cne $script:initialEditor);if($save.Enabled){$status.Text='有未保存的修改 · Ctrl+S 保存';$status.ForeColor=[TrayDesign]::Blue}else{$status.Text='暂无未保存的修改';$status.ForeColor=[TrayDesign]::MutedColor}})
 [TrayDesign]::StyleFields($window);[TrayDesign]::SaveShortcut($window,$save)
 function Save-Memory {
     if($editor.Text.Length -gt 12000){$status.Text='内容超过 12000 字符，请精简后保存。';return $false}
@@ -58,7 +58,7 @@ function Save-Memory {
         $content=$editor.Text.Replace("`r`n","`n")
         [IO.File]::WriteAllText($temp,$content,(New-Object Text.UTF8Encoding($false)))
         if(Test-Path -LiteralPath $memoryPath){[MemoryAtomic]::Replace($temp,$memoryPath)}else{[IO.File]::Move($temp,$memoryPath)}
-        $script:original=$content;$script:initialEditor=$editor.Text;$save.Enabled=$false;$status.ForeColor=[Drawing.ColorTranslator]::FromHtml('#16834A');$status.Text='已保存。下一次处理任务生效，当前正在执行的任务不受影响。'
+        $script:original=$content;$script:initialEditor=$editor.Text;$save.Enabled=$false;$status.ForeColor=[TrayDesign]::SuccessText;$status.Text='已保存。下一次处理任务生效，当前正在执行的任务不受影响。'
         return $true
     }catch{if($Verify){throw};$status.Text='保存失败，原记忆未被替换。请检查路径和文件权限。';return $false}
     finally{if(Test-Path -LiteralPath $temp){Remove-Item -LiteralPath $temp}}
